@@ -64,9 +64,14 @@ export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemar
     for (const { key, value } of customFields) {
       if (key.trim()) cf[key.trim()] = value;
     }
+    // Convert the datetime-local string (user's local time, no TZ) to a
+    // proper UTC ISO string so the server stores the absolute instant,
+    // not whatever the server's local timezone guesses.
+    const followUpIso = followUpDate ? new Date(followUpDate).toISOString() : null;
+
     onSave(lead._id, {
       status,
-      followUpDate: followUpDate || null,
+      followUpDate: followUpIso,
       notes,
       assignedTo: assignedTo || null,
       customFields: cf,

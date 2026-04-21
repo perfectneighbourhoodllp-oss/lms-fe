@@ -22,10 +22,14 @@ export default function AddLeadModal({ onClose, onSubmit, users, canAssign, isLo
     for (const { key, value } of customFields) {
       if (key.trim() && value.trim()) cf[key.trim()] = value.trim();
     }
-    onSubmit({
+    // Convert datetime-local string to UTC ISO so server stores absolute time
+    // regardless of server timezone (local dev vs UTC production).
+    const payload = {
       ...data,
+      followUpDate: data.followUpDate ? new Date(data.followUpDate).toISOString() : null,
       customFields: Object.keys(cf).length ? cf : undefined,
-    });
+    };
+    onSubmit(payload);
   };
 
   const { data: projects = [] } = useQuery({
