@@ -16,6 +16,8 @@ export const leadService = {
   getStats: () => api.get('/leads/stats').then((r) => r.data),
   addRemark: (id, text) => api.post(`/leads/${id}/remarks`, { text }).then((r) => r.data),
   getRelated: (id) => api.get(`/leads/${id}/related`).then((r) => r.data),
+  exportCsv: (params) =>
+    api.get('/leads/export', { params, responseType: 'blob' }).then((r) => r.data),
 };
 
 export const userService = {

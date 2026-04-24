@@ -20,6 +20,7 @@ export default function Leads() {
   const [showBulk, setShowBulk] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const [selectedLeadId, setSelectedLeadId] = useState(null);
+  const [exporting, setExporting] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
@@ -133,6 +134,37 @@ export default function Leads() {
     return result;
   };
 
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const blob = await leadService.exportCsv({
+        search: search || undefined,
+        status: statusFilter || undefined,
+        source: sourceFilter || undefined,
+        project: projectFilter || undefined,
+        assignedTo: agentFilter || undefined,
+        createdFrom: createdFrom || undefined,
+        createdTo: createdTo || undefined,
+        followUpFrom: followUpFrom || undefined,
+        followUpTo: followUpTo || undefined,
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const today = new Date().toISOString().slice(0, 10);
+      a.download = `leads-${today}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success('Export complete');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Export failed');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="p-4 sm:p-6 max-w-7xl mx-auto">
       {/* Header */}
@@ -144,6 +176,13 @@ export default function Leads() {
           </p>
         </div>
         <div className="flex w-full sm:w-auto gap-2">
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            className="btn-secondary flex-1 sm:flex-none"
+          >
+            {exporting ? 'Exporting…' : '⬇ Export'}
+          </button>
           {canAssign && (
             <button onClick={() => setShowBulk(true)} className="btn-secondary flex-1 sm:flex-none">
               ⬆ Bulk Upload

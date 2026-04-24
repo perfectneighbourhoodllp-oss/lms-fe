@@ -1,4 +1,4 @@
-export const STATUSES = ['New', 'Called', 'Interested', 'Site Visit', 'Closed'];
+export const STATUSES = ['New', 'Called', 'Interested', 'Site Visit', 'Closed', 'Not Interested', 'Dead'];
 export const SOURCES = ['Instagram', 'Ads', 'Referral', 'Walk-in', 'Website', 'Other'];
 
 export const STATUS_STYLE = {
@@ -7,6 +7,8 @@ export const STATUS_STYLE = {
   Interested: 'bg-purple-100 text-purple-700',
   'Site Visit': 'bg-orange-100 text-orange-700',
   Closed: 'bg-green-100 text-green-700',
+  'Not Interested': 'bg-gray-200 text-gray-600',
+  Dead: 'bg-red-100 text-red-700',
 };
 
 const fmtDate = (d) => {
@@ -20,10 +22,22 @@ const fmtDate = (d) => {
   return `${dateStr}, ${timeStr}`;
 };
 
+// Always-with-time formatter for system timestamps like createdAt (always shows IST)
+const fmtDateTime = (d) => {
+  if (!d) return '—';
+  const dt = new Date(d);
+  return (
+    dt.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }) +
+    ', ' +
+    dt.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
+  );
+};
+
 const waLink = (phone) => `https://wa.me/${phone.replace(/\D/g, '')}`;
 
 const isOverdue = (lead) => {
-  if (!lead.followUpDate || lead.status === 'Closed') return false;
+  if (!lead.followUpDate) return false;
+  if (['Closed', 'Not Interested', 'Dead'].includes(lead.status)) return false;
   return new Date(lead.followUpDate) < new Date(new Date().setHours(0, 0, 0, 0));
 };
 
@@ -66,12 +80,16 @@ function LeadCard({ lead, onSelect }) {
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-2 mb-3">
+      <div className="flex items-center justify-between gap-2 mb-1">
         <span className="font-mono text-xs text-gray-600">{lead.phone}</span>
         <span className="text-xs text-gray-400">
           {lead.followUpDate ? fmtDate(lead.followUpDate) : ''}
           {remarksCount > 0 && <span className="ml-2">· {remarksCount} remark{remarksCount !== 1 ? 's' : ''}</span>}
         </span>
+      </div>
+
+      <div className="text-[10px] text-gray-400 mb-3">
+        Created {fmtDateTime(lead.createdAt)}
       </div>
 
       {/* Quick contact actions — stop propagation so row click doesn't fire */}
@@ -127,6 +145,7 @@ export default function LeadTable({ leads = [], onSelect, compact }) {
               <th className="th">Status</th>
               <th className="th">Follow-up</th>
               {!compact && <th className="th">Assigned</th>}
+              {!compact && <th className="th">Created</th>}
               <th className="th w-10"></th>
             </tr>
           </thead>
@@ -176,6 +195,9 @@ export default function LeadTable({ leads = [], onSelect, compact }) {
                   <td className="td text-gray-500">{fmtDate(lead.followUpDate)}</td>
                   {!compact && (
                     <td className="td text-gray-500 text-sm">{lead.assignedTo?.name || '—'}</td>
+                  )}
+                  {!compact && (
+                    <td className="td text-gray-400 text-xs whitespace-nowrap">{fmtDateTime(lead.createdAt)}</td>
                   )}
                   <td className="td text-gray-300 text-lg text-right pr-4">›</td>
                 </tr>
