@@ -138,12 +138,21 @@ function LeadCard({ lead, onSelect }) {
 }
 
 /* ─── Main Component ──────────────────────────────────────── */
-export default function LeadTable({ leads = [], onSelect, compact }) {
+export default function LeadTable({
+  leads = [],
+  onSelect,
+  compact,
+  selectedIds, // optional Set<string> — when provided, checkboxes are rendered
+  onToggleSelect, // (id) => void
+  onToggleSelectAll, // (checked: boolean) => void
+}) {
   if (!leads.length) {
     return <div className="text-center py-10 text-gray-400 text-sm">No leads found.</div>;
   }
 
   const handleSelect = onSelect || (() => {});
+  const showCheckboxes = Boolean(selectedIds && onToggleSelect);
+  const allOnPageSelected = showCheckboxes && leads.every((l) => selectedIds.has(l._id));
 
   return (
     <>
@@ -159,6 +168,16 @@ export default function LeadTable({ leads = [], onSelect, compact }) {
         <table className="w-full">
           <thead className="bg-gray-50 border-b border-gray-100">
             <tr>
+              {showCheckboxes && (
+                <th className="th w-8">
+                  <input
+                    type="checkbox"
+                    checked={allOnPageSelected}
+                    onChange={(e) => onToggleSelectAll && onToggleSelectAll(e.target.checked)}
+                    aria-label="Select all leads on this page"
+                  />
+                </th>
+              )}
               <th className="th">Name</th>
               <th className="th">Phone</th>
               {!compact && <th className="th">Project</th>}
@@ -183,6 +202,16 @@ export default function LeadTable({ leads = [], onSelect, compact }) {
                     overdue ? 'bg-red-50' : today ? 'bg-blue-50' : ''
                   }`}
                 >
+                  {showCheckboxes && (
+                    <td className="td" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(lead._id)}
+                        onChange={() => onToggleSelect(lead._id)}
+                        aria-label={`Select ${lead.name}`}
+                      />
+                    </td>
+                  )}
                   <td className="td">
                     <div className="font-medium text-gray-900 flex items-center gap-1.5">
                       <span>{lead.name}</span>

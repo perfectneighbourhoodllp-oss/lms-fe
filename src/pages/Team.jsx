@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
+import PasswordInput from '../components/PasswordInput';
 import api from '../utils/api';
 
 const teamService = {
@@ -92,8 +93,7 @@ function AgentFormModal({ agent, onClose, onSubmit, isLoading, currentUserRole }
           {!isEdit && (
             <div>
               <label className="label">Password *</label>
-              <input
-                type="password"
+              <PasswordInput
                 className="input"
                 placeholder="Min 6 characters"
                 {...register('password', {
@@ -144,8 +144,7 @@ function ResetPasswordModal({ agent, onClose, onSubmit, isLoading }) {
         <form onSubmit={handleSubmit(onSubmit)} className="p-5 space-y-3">
           <div>
             <label className="label">New Password *</label>
-            <input
-              type="password"
+            <PasswordInput
               className="input"
               placeholder="Min 6 characters"
               {...register('password', { required: true, minLength: { value: 6, message: 'Min 6 chars' } })}
@@ -154,8 +153,7 @@ function ResetPasswordModal({ agent, onClose, onSubmit, isLoading }) {
           </div>
           <div>
             <label className="label">Confirm Password *</label>
-            <input
-              type="password"
+            <PasswordInput
               className="input"
               placeholder="Repeat password"
               {...register('confirm', {

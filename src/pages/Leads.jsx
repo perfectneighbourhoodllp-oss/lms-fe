@@ -15,12 +15,16 @@ export default function Leads() {
   const qc = useQueryClient();
   const canAssign = user?.role === 'admin' || user?.role === 'manager';
   const canDelete = user?.role === 'admin' || user?.role === 'manager';
+  const isAdmin = user?.role === 'admin';
 
   const [showAdd, setShowAdd] = useState(false);
   const [showBulk, setShowBulk] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
   const [selectedLeadId, setSelectedLeadId] = useState(null);
   const [exporting, setExporting] = useState(false);
+  // Bulk-delete selection state (admin only)
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
@@ -114,6 +118,35 @@ export default function Leads() {
     },
     onError: () => toast.error('Delete failed'),
   });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: (ids) => leadService.bulkDelete(ids),
+    onSuccess: ({ deletedCount }) => {
+      qc.invalidateQueries({ queryKey: ['leads'] });
+      qc.invalidateQueries({ queryKey: ['stats'] });
+      setSelectedIds(new Set());
+      toast.success(`${deletedCount} lead${deletedCount !== 1 ? 's' : ''} deleted`);
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Bulk delete failed'),
+  });
+
+  // Selection handlers
+  const toggleSelect = (id) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const toggleSelectAll = (checked) => {
+    setSelectedIds(checked ? new Set(leads.map((l) => l._id)) : new Set());
+  };
+
+  // Clear selection when filters or page change (avoid stale selection across views)
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [search, statusFilter, sourceFilter, projectFilter, agentFilter, createdFrom, createdTo, followUpFrom, followUpTo, page]);
 
   const bulkMutation = useMutation({
     mutationFn: leadService.bulkUpload,
@@ -344,6 +377,9 @@ export default function Leads() {
           <LeadTable
             leads={leads}
             onSelect={(lead) => setSelectedLeadId(lead._id)}
+            selectedIds={isAdmin ? selectedIds : undefined}
+            onToggleSelect={isAdmin ? toggleSelect : undefined}
+            onToggleSelectAll={isAdmin ? toggleSelectAll : undefined}
           />
         )}
       </div>
@@ -370,6 +406,28 @@ export default function Leads() {
               Next
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Bulk action bar (admin, when leads are selected) */}
+      {isAdmin && selectedIds.size > 0 && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 bg-gray-900 text-white rounded-full shadow-xl px-4 py-2.5 flex items-center gap-3">
+          <span className="text-sm">
+            {selectedIds.size} selected
+          </span>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="text-xs text-gray-300 hover:text-white"
+          >
+            Clear
+          </button>
+          <button
+            onClick={() => setConfirmBulkDelete(true)}
+            disabled={bulkDeleteMutation.isPending}
+            className="bg-red-600 hover:bg-red-700 text-white text-xs font-medium py-1.5 px-3 rounded-full disabled:opacity-50"
+          >
+            {bulkDeleteMutation.isPending ? 'Deleting…' : 'Delete'}
+          </button>
         </div>
       )}
 
@@ -403,6 +461,19 @@ export default function Leads() {
             setSelectedLeadId(null);
           }}
           onCancel={() => setDeleteId(null)}
+        />
+      )}
+
+      {confirmBulkDelete && (
+        <ConfirmModal
+          title={`Delete ${selectedIds.size} Lead${selectedIds.size !== 1 ? 's' : ''}?`}
+          message={`These ${selectedIds.size} leads and all their remarks will be permanently deleted. This cannot be undone.`}
+          confirmLabel={`Delete ${selectedIds.size}`}
+          onConfirm={() => {
+            bulkDeleteMutation.mutate(Array.from(selectedIds));
+            setConfirmBulkDelete(false);
+          }}
+          onCancel={() => setConfirmBulkDelete(false)}
         />
       )}
 

@@ -18,6 +18,7 @@ export const leadService = {
   getRelated: (id) => api.get(`/leads/${id}/related`).then((r) => r.data),
   exportCsv: (params) =>
     api.get('/leads/export', { params, responseType: 'blob' }).then((r) => r.data),
+  bulkDelete: (ids) => api.post('/leads/bulk-delete', { ids }).then((r) => r.data),
 };
 
 export const userService = {

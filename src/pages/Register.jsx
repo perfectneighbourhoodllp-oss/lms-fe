@@ -2,6 +2,7 @@ import { useForm } from 'react-hook-form';
 import { useNavigate, Link } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import PasswordInput from '../components/PasswordInput';
 
 export default function Register() {
   const { register: registerUser } = useAuth();
@@ -50,7 +51,7 @@ export default function Register() {
           </div>
           <div>
             <label className="label">Password *</label>
-            <input type="password" className="input" placeholder="Min 6 chars" {...register('password', { required: true, minLength: 6 })} />
+            <PasswordInput className="input" placeholder="Min 6 chars" {...register('password', { required: true, minLength: 6 })} />
           </div>
 
           <button type="submit" disabled={isSubmitting} className="btn-primary w-full">

@@ -2,6 +2,7 @@ import { useForm } from 'react-hook-form';
 import { useNavigate, Link } from 'react-router-dom';
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import PasswordInput from '../components/PasswordInput';
 
 export default function Login() {
   const { login } = useAuth();
@@ -49,8 +50,7 @@ export default function Login() {
 
           <div>
             <label className="label">Password</label>
-            <input
-              type="password"
+            <PasswordInput
               className="input"
               placeholder="••••••••"
               {...register('password', { required: true })}
@@ -71,12 +71,12 @@ export default function Login() {
         </form>
 
         <div className="px-5 pb-5 text-center">
-          <p className="text-xs text-gray-500">
+          {/* <p className="text-xs text-gray-500">
             No account?{' '}
             <Link to="/register" className="text-blue-600 hover:underline font-medium">
               Register
             </Link>
-          </p>
+          </p> */}
         </div>
       </div>
     </div>
