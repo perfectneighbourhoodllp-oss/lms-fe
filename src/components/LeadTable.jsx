@@ -35,6 +35,16 @@ const fmtDateTime = (d) => {
 
 const waLink = (phone) => `https://wa.me/${phone.replace(/\D/g, '')}`;
 
+// "Unattended" = lead created over 35 min ago, no remarks added, not in terminal status.
+// Frontend-only check using already-loaded lead fields.
+const UNATTENDED_THRESHOLD_MS = 35 * 60 * 1000;
+const isUnattended = (lead) => {
+  if (!lead.createdAt) return false;
+  if ((lead.remarks || []).length > 0) return false;
+  if (['Closed', 'Not Interested', 'Dead'].includes(lead.status)) return false;
+  return Date.now() - new Date(lead.createdAt).getTime() > UNATTENDED_THRESHOLD_MS;
+};
+
 const isOverdue = (lead) => {
   if (!lead.followUpDate) return false;
   if (['Closed', 'Not Interested', 'Dead'].includes(lead.status)) return false;
@@ -67,7 +77,18 @@ function LeadCard({ lead, onSelect }) {
     >
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-gray-900 text-sm truncate">{lead.name}</p>
+          <p className="font-semibold text-gray-900 text-sm truncate flex items-center gap-1.5">
+            <span className="truncate">{lead.name}</span>
+            {isUnattended(lead) && (
+              <span
+                title="Unattended — no remarks for over 35 minutes"
+                aria-label="Unattended"
+                className="text-amber-500 flex-shrink-0"
+              >
+                ⚠️
+              </span>
+            )}
+          </p>
           {lead.project?.name && (
             <p className="text-xs text-gray-400 truncate">{lead.project.name}</p>
           )}
@@ -163,7 +184,18 @@ export default function LeadTable({ leads = [], onSelect, compact }) {
                   }`}
                 >
                   <td className="td">
-                    <div className="font-medium text-gray-900">{lead.name}</div>
+                    <div className="font-medium text-gray-900 flex items-center gap-1.5">
+                      <span>{lead.name}</span>
+                      {isUnattended(lead) && (
+                        <span
+                          title="Unattended — no remarks for over 35 minutes"
+                          aria-label="Unattended"
+                          className="text-amber-500"
+                        >
+                          ⚠️
+                        </span>
+                      )}
+                    </div>
                     {remarksCount > 0 && !compact && (
                       <div className="text-xs text-gray-400 mt-0.5">
                         {remarksCount} remark{remarksCount !== 1 ? 's' : ''}
