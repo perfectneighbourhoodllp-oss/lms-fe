@@ -37,11 +37,14 @@ export default function Leads() {
   const [page, setPage] = useState(1);
   const [dateFilterOpen, setDateFilterOpen] = useState(false);
 
-  // Read ?assignedTo=<userId> from URL so clicking an agent in Agent Performance pre-filters here
+  // Read URL params: ?assignedTo=<userId> pre-filters by agent
+  // and ?focus=<leadId> auto-opens the lead drawer (used by notifications)
   const [searchParams] = useSearchParams();
   useEffect(() => {
     const assignedTo = searchParams.get('assignedTo');
     if (assignedTo) setAgentFilter(assignedTo);
+    const focus = searchParams.get('focus');
+    if (focus) setSelectedLeadId(focus);
   }, [searchParams]);
 
   const { data: leadsData, isLoading } = useQuery({
@@ -65,6 +68,16 @@ export default function Leads() {
   const leads = leadsData?.leads ?? [];
   const totalLeads = leadsData?.total ?? 0;
   const totalPages = leadsData?.pages ?? 1;
+
+  // If a lead is selected but not in the current page (e.g. opened from a notification),
+  // fetch it directly so the drawer can render.
+  const selectedInPage = selectedLeadId ? leads.find((l) => l._id === selectedLeadId) : null;
+  const { data: focusedLead } = useQuery({
+    queryKey: ['lead-focus', selectedLeadId],
+    queryFn: () => leadService.getOne(selectedLeadId),
+    enabled: Boolean(selectedLeadId && !selectedInPage),
+  });
+  const drawerLead = selectedInPage || focusedLead;
 
   const { data: users = [] } = useQuery({
     queryKey: ['users'],
@@ -477,22 +490,18 @@ export default function Leads() {
         />
       )}
 
-      {selectedLeadId && (() => {
-        const selectedLead = leads.find((l) => l._id === selectedLeadId);
-        if (!selectedLead) return null;
-        return (
-          <LeadDrawer
-            lead={selectedLead}
-            onClose={() => setSelectedLeadId(null)}
-            onSave={(id, data) => saveMutation.mutate({ id, ...data })}
-            onDelete={(id) => setDeleteId(id)}
-            onAddRemark={(id, text) => remarkMutation.mutateAsync({ id, text })}
-            users={users}
-            canAssign={canAssign}
-            canDelete={canDelete}
-          />
-        );
-      })()}
+      {selectedLeadId && drawerLead && (
+        <LeadDrawer
+          lead={drawerLead}
+          onClose={() => setSelectedLeadId(null)}
+          onSave={(id, data) => saveMutation.mutate({ id, ...data })}
+          onDelete={(id) => setDeleteId(id)}
+          onAddRemark={(id, text) => remarkMutation.mutateAsync({ id, text })}
+          users={users}
+          canAssign={canAssign}
+          canDelete={canDelete}
+        />
+      )}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import NotificationBell from './NotificationBell';
 
 const NAV = [
   { to: '/', label: 'Dashboard', icon: '⬛' },
@@ -131,6 +132,11 @@ export default function Layout() {
 
       {/* ── Main content area ── */}
       <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Desktop top bar (notifications) */}
+        <header className="hidden md:flex items-center justify-end gap-2 px-6 py-2 bg-white border-b border-gray-100 flex-shrink-0">
+          <NotificationBell />
+        </header>
+
         {/* Mobile top bar */}
         <header className="md:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-gray-100 flex-shrink-0">
           <button
@@ -146,8 +152,11 @@ export default function Layout() {
             <div className="w-6 h-6 bg-blue-600 rounded-md flex items-center justify-center text-white font-bold text-[10px]">PNH</div>
             <span className="font-bold text-gray-800 text-sm">PNH Lead MS</span>
           </div>
-          <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-semibold text-sm">
-            {user?.name?.[0]?.toUpperCase()}
+          <div className="flex items-center gap-1">
+            <NotificationBell />
+            <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-semibold text-sm">
+              {user?.name?.[0]?.toUpperCase()}
+            </div>
           </div>
         </header>
 
