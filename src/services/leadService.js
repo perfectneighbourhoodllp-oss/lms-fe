@@ -31,6 +31,8 @@ export const notificationService = {
 export const userService = {
   getAll: () => api.get('/users').then((r) => r.data),
   getAgentPerformance: () => api.get('/users/agent-performance').then((r) => r.data),
+  setMyAvailability: (isAvailable) =>
+    api.put('/users/me/availability', { isAvailable }).then((r) => r.data),
 };
 
 export const sheetService = {

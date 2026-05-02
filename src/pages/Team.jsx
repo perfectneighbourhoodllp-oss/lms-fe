@@ -223,6 +223,15 @@ export default function Team() {
     onError: () => toast.error('Action failed'),
   });
 
+  const toggleAvailableMutation = useMutation({
+    mutationFn: ({ id, isAvailable }) => teamService.update(id, { isAvailable }),
+    onSuccess: (_, vars) => {
+      qc.invalidateQueries({ queryKey: ['users-team'] });
+      toast.success(vars.isAvailable ? 'Agent resumed — receiving leads' : 'Agent paused — no new leads');
+    },
+    onError: () => toast.error('Action failed'),
+  });
+
   const resetPwdMutation = useMutation({
     mutationFn: ({ id, password }) => teamService.resetPassword(id, password),
     onSuccess: () => {
@@ -250,6 +259,23 @@ export default function Team() {
       {isAdmin && (
         <button onClick={() => setResetAgent(u)} className="btn-secondary text-xs py-1 px-2">
           Reset Pwd
+        </button>
+      )}
+
+      {u._id !== user?.id && u.isActive && (
+        <button
+          onClick={() => toggleAvailableMutation.mutate({ id: u._id, isAvailable: u.isAvailable === false })}
+          disabled={toggleAvailableMutation.isPending}
+          className={`text-xs py-1 px-2 btn ${
+            u.isAvailable !== false
+              ? 'bg-yellow-50 text-yellow-700 border border-yellow-200 hover:bg-yellow-100'
+              : 'bg-green-50 text-green-600 border border-green-200 hover:bg-green-100'
+          }`}
+          title={u.isAvailable !== false
+            ? 'Pause new lead assignments — agent stays logged in'
+            : 'Resume — agent will receive new leads again'}
+        >
+          {u.isAvailable !== false ? 'Pause' : 'Resume'}
         </button>
       )}
 
@@ -321,9 +347,14 @@ export default function Team() {
                           <p className="text-xs text-gray-400 truncate">{u.email}</p>
                         </div>
                       </div>
-                      <span className={`badge ${u.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
-                        {u.isActive ? 'Active' : 'Inactive'}
-                      </span>
+                      <div className="flex items-center gap-1 flex-wrap justify-end">
+                        <span className={`badge ${u.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
+                          {u.isActive ? 'Active' : 'Inactive'}
+                        </span>
+                        {u.isActive && u.isAvailable === false && (
+                          <span className="badge bg-yellow-100 text-yellow-700">Paused</span>
+                        )}
+                      </div>
                     </div>
 
                     <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
@@ -395,9 +426,14 @@ export default function Team() {
                         </td>
 
                         <td className="td">
-                          <span className={`badge ${u.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
-                            {u.isActive ? 'Active' : 'Inactive'}
-                          </span>
+                          <div className="flex items-center gap-1 flex-wrap">
+                            <span className={`badge ${u.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
+                              {u.isActive ? 'Active' : 'Inactive'}
+                            </span>
+                            {u.isActive && u.isAvailable === false && (
+                              <span className="badge bg-yellow-100 text-yellow-700">Paused</span>
+                            )}
+                          </div>
                         </td>
 
                         <td className="td">{renderActions(u)}</td>

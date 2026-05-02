@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import NotificationBell from './NotificationBell';
+import AvailabilityToggle from './AvailabilityToggle';
 
 const NAV = [
   { to: '/', label: 'Dashboard', icon: '⬛' },
@@ -96,6 +97,9 @@ export default function Layout() {
             </span>
           </div>
         </div>
+        <div className="mb-2">
+          <AvailabilityToggle />
+        </div>
         <button
           onClick={() => { logout(); navigate('/login'); }}
           className="btn-secondary w-full text-xs py-1.5"
@@ -152,11 +156,9 @@ export default function Layout() {
             <div className="w-6 h-6 bg-blue-600 rounded-md flex items-center justify-center text-white font-bold text-[10px]">PNH</div>
             <span className="font-bold text-gray-800 text-sm">PNH Lead MS</span>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
+            <AvailabilityToggle />
             <NotificationBell />
-            <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-semibold text-sm">
-              {user?.name?.[0]?.toUpperCase()}
-            </div>
           </div>
         </header>
 
