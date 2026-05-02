@@ -255,7 +255,13 @@ export default function LeadTable({
                   </td>
                   <td className="td text-gray-500">{fmtDate(lead.followUpDate)}</td>
                   {!compact && (
-                    <td className="td text-gray-500 text-sm">{lead.assignedTo?.name || '—'}</td>
+                    <td className="td text-sm">
+                      {lead.assignedTo?.name ? (
+                        <span className="text-gray-500">{lead.assignedTo.name}</span>
+                      ) : (
+                        <span className="badge bg-yellow-100 text-yellow-700">Unassigned</span>
+                      )}
+                    </td>
                   )}
                   {!compact && (
                     <td className="td text-gray-400 text-xs whitespace-nowrap">{fmtDateTime(lead.createdAt)}</td>

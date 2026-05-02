@@ -7,6 +7,7 @@ const TYPE_ICON = {
   'lead.assigned': '🆕',
   'lead.remark': '💬',
   'lead.followUp': '⏰',
+  'lead.unassigned': '❓',
 };
 
 const fmtAgo = (d) => {

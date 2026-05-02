@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import PasswordInput from '../components/PasswordInput';
+import ConfirmModal from '../components/ConfirmModal';
 import api from '../utils/api';
 
 const teamService = {
@@ -185,6 +186,7 @@ export default function Team() {
   const [showAdd, setShowAdd] = useState(false);
   const [editAgent, setEditAgent] = useState(null);
   const [resetAgent, setResetAgent] = useState(null);
+  const [confirmActiveToggle, setConfirmActiveToggle] = useState(null); // user being de/reactivated
   const [roleFilter, setRoleFilter] = useState('');
 
   const { data: users = [], isLoading } = useQuery({
@@ -262,7 +264,7 @@ export default function Team() {
         </button>
       )}
 
-      {u._id !== user?.id && u.isActive && (
+      {u._id !== user?.id && u.isActive && u.role !== 'admin' && (
         <button
           onClick={() => toggleAvailableMutation.mutate({ id: u._id, isAvailable: u.isAvailable === false })}
           disabled={toggleAvailableMutation.isPending}
@@ -279,9 +281,9 @@ export default function Team() {
         </button>
       )}
 
-      {u._id !== user?.id && (
+      {isAdmin && u._id !== user?.id && (
         <button
-          onClick={() => toggleActiveMutation.mutate({ id: u._id, isActive: !u.isActive })}
+          onClick={() => setConfirmActiveToggle(u)}
           className={`text-xs py-1 px-2 btn ${
             u.isActive
               ? 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'
@@ -472,6 +474,27 @@ export default function Team() {
           onClose={() => setResetAgent(null)}
           onSubmit={({ password }) => resetPwdMutation.mutate({ id: resetAgent._id, password })}
           isLoading={resetPwdMutation.isPending}
+        />
+      )}
+
+      {confirmActiveToggle && (
+        <ConfirmModal
+          title={confirmActiveToggle.isActive ? 'Deactivate Agent' : 'Reactivate Agent'}
+          message={
+            confirmActiveToggle.isActive
+              ? `${confirmActiveToggle.name} will no longer be able to log in or receive new leads. Existing leads stay assigned to them. You can reactivate any time.`
+              : `${confirmActiveToggle.name} will be able to log in again and start receiving new leads (if their availability is set).`
+          }
+          confirmLabel={confirmActiveToggle.isActive ? 'Deactivate' : 'Reactivate'}
+          danger={confirmActiveToggle.isActive}
+          onConfirm={() => {
+            toggleActiveMutation.mutate({
+              id: confirmActiveToggle._id,
+              isActive: !confirmActiveToggle.isActive,
+            });
+            setConfirmActiveToggle(null);
+          }}
+          onCancel={() => setConfirmActiveToggle(null)}
         />
       )}
     </div>

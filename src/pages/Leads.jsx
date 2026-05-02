@@ -281,6 +281,7 @@ export default function Leads() {
             onChange={(e) => { setAgentFilter(e.target.value); setPage(1); }}
           >
             <option value="">All Agents</option>
+            <option value="unassigned">— Unassigned only —</option>
             {users.map((u) => (
               <option key={u._id} value={u._id}>{u.name}</option>
             ))}
