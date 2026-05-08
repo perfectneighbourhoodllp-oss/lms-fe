@@ -35,9 +35,9 @@ const fmtDateTime = (d) => {
 
 const waLink = (phone) => `https://wa.me/${phone.replace(/\D/g, '')}`;
 
-// "Unattended" = lead created over 35 min ago, no remarks added, not in terminal status.
+// "Unattended" = lead created over 20 min ago, no remarks added, not in terminal status.
 // Frontend-only check using already-loaded lead fields.
-const UNATTENDED_THRESHOLD_MS = 35 * 60 * 1000;
+const UNATTENDED_THRESHOLD_MS = 20 * 60 * 1000;
 const isUnattended = (lead) => {
   if (!lead.createdAt) return false;
   if ((lead.remarks || []).length > 0) return false;
@@ -81,11 +81,11 @@ function LeadCard({ lead, onSelect }) {
             <span className="truncate">{lead.name}</span>
             {isUnattended(lead) && (
               <span
-                title="Unattended — no remarks for over 35 minutes"
+                title="Unattended — no remarks for over 20 minutes"
                 aria-label="Unattended"
                 className="text-amber-500 flex-shrink-0"
               >
-                ⚠️
+                ⏰
               </span>
             )}
           </p>
@@ -217,11 +217,11 @@ export default function LeadTable({
                       <span>{lead.name}</span>
                       {isUnattended(lead) && (
                         <span
-                          title="Unattended — no remarks for over 35 minutes"
+                          title="Unattended — no remarks for over 20 minutes"
                           aria-label="Unattended"
                           className="text-amber-500"
                         >
-                          ⚠️
+                          ⏰
                         </span>
                       )}
                     </div>
