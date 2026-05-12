@@ -34,21 +34,34 @@ export default function Leads() {
   const [createdTo, setCreatedTo] = useState('');
   const [followUpFrom, setFollowUpFrom] = useState('');
   const [followUpTo, setFollowUpTo] = useState('');
+  const [hasFollowUpFilter, setHasFollowUpFilter] = useState(''); // '' | 'true' | 'false'
+  const [overdueFilter, setOverdueFilter] = useState(false); // toggled via URL param from Dashboard
   const [page, setPage] = useState(1);
   const [dateFilterOpen, setDateFilterOpen] = useState(false);
 
-  // Read URL params: ?assignedTo=<userId> pre-filters by agent
-  // and ?focus=<leadId> auto-opens the lead drawer (used by notifications)
+  // Read URL params (used by notifications + dashboard stat-card click-through):
+  //   ?assignedTo=<userId>   → pre-filter by agent
+  //   ?focus=<leadId>        → auto-open lead drawer
+  //   ?status=<value>        → pre-filter by status
+  //   ?followUpFrom / followUpTo → pre-fill follow-up date range
+  //   ?overdue=true          → show only overdue leads
   const [searchParams] = useSearchParams();
   useEffect(() => {
     const assignedTo = searchParams.get('assignedTo');
     if (assignedTo) setAgentFilter(assignedTo);
     const focus = searchParams.get('focus');
     if (focus) setSelectedLeadId(focus);
+    const status = searchParams.get('status');
+    if (status) setStatusFilter(status);
+    const fuFrom = searchParams.get('followUpFrom');
+    if (fuFrom) setFollowUpFrom(fuFrom);
+    const fuTo = searchParams.get('followUpTo');
+    if (fuTo) setFollowUpTo(fuTo);
+    if (searchParams.get('overdue') === 'true') setOverdueFilter(true);
   }, [searchParams]);
 
   const { data: leadsData, isLoading } = useQuery({
-    queryKey: ['leads', search, statusFilter, sourceFilter, projectFilter, agentFilter, createdFrom, createdTo, followUpFrom, followUpTo, page],
+    queryKey: ['leads', search, statusFilter, sourceFilter, projectFilter, agentFilter, createdFrom, createdTo, followUpFrom, followUpTo, hasFollowUpFilter, overdueFilter, page],
     queryFn: () =>
       leadService.getAll({
         search: search || undefined,
@@ -60,6 +73,8 @@ export default function Leads() {
         createdTo: createdTo || undefined,
         followUpFrom: followUpFrom || undefined,
         followUpTo: followUpTo || undefined,
+        hasFollowUp: hasFollowUpFilter || undefined,
+        overdue: overdueFilter ? 'true' : undefined,
         page,
         limit: 30,
       }),
@@ -159,7 +174,7 @@ export default function Leads() {
   // Clear selection when filters or page change (avoid stale selection across views)
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [search, statusFilter, sourceFilter, projectFilter, agentFilter, createdFrom, createdTo, followUpFrom, followUpTo, page]);
+  }, [search, statusFilter, sourceFilter, projectFilter, agentFilter, createdFrom, createdTo, followUpFrom, followUpTo, hasFollowUpFilter, overdueFilter, page]);
 
   const bulkMutation = useMutation({
     mutationFn: leadService.bulkUpload,
@@ -193,6 +208,7 @@ export default function Leads() {
         createdTo: createdTo || undefined,
         followUpFrom: followUpFrom || undefined,
         followUpTo: followUpTo || undefined,
+        hasFollowUp: hasFollowUpFilter || undefined,
       });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -287,13 +303,33 @@ export default function Leads() {
             ))}
           </select>
         )}
-        {(search || statusFilter || sourceFilter || projectFilter || agentFilter || createdFrom || createdTo || followUpFrom || followUpTo) && (
+        {overdueFilter && (
+          <button
+            onClick={() => { setOverdueFilter(false); setPage(1); }}
+            className="badge bg-red-100 text-red-700 hover:bg-red-200 px-3 py-1.5 text-xs"
+            title="Click to remove this filter"
+          >
+            Overdue only ✕
+          </button>
+        )}
+        <select
+          className="input w-full sm:w-44"
+          value={hasFollowUpFilter}
+          onChange={(e) => { setHasFollowUpFilter(e.target.value); setPage(1); }}
+        >
+          <option value="">All Follow-ups</option>
+          <option value="true">With follow-up</option>
+          <option value="false">Without follow-up</option>
+        </select>
+        {(search || statusFilter || sourceFilter || projectFilter || agentFilter || createdFrom || createdTo || followUpFrom || followUpTo || hasFollowUpFilter || overdueFilter) && (
           <button
             onClick={() => {
               setSearch(''); setStatusFilter(''); setSourceFilter('');
               setProjectFilter(''); setAgentFilter('');
               setCreatedFrom(''); setCreatedTo('');
               setFollowUpFrom(''); setFollowUpTo('');
+              setHasFollowUpFilter('');
+              setOverdueFilter(false);
               setPage(1);
             }}
             className="btn-ghost text-xs w-full sm:w-auto"

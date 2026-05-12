@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { leadService, userService } from '../services/leadService';
@@ -18,7 +19,16 @@ const greeting = () => {
 export default function Dashboard() {
   const { user } = useAuth();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const isSales = user?.role === 'sales';
+
+  // Today as ISO YYYY-MM-DD (for follow-up date filter)
+  const todayIso = new Date().toISOString().slice(0, 10);
+  // First day of the current month
+  const monthStartIso = (() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
+  })();
   const canAssign = user?.role === 'admin' || user?.role === 'manager';
   const canDelete = user?.role === 'admin' || user?.role === 'manager';
 
@@ -96,24 +106,28 @@ export default function Dashboard() {
           label={isSales ? 'Assigned to Me' : 'Total Leads'}
           value={stats?.total}
           icon="👥"
+          onClick={() => navigate('/leads')}
         />
         <StatCard
           label="Follow-ups Today"
           value={stats?.todayFollowups}
           color="text-blue-600"
           icon="📅"
+          onClick={() => navigate(`/leads?followUpFrom=${todayIso}&followUpTo=${todayIso}`)}
         />
         <StatCard
           label="Overdue"
           value={stats?.overdue}
           color={stats?.overdue > 0 ? 'text-red-600' : 'text-gray-900'}
           icon="⚠️"
+          onClick={() => navigate('/leads?overdue=true')}
         />
         <StatCard
           label="Closed This Month"
           value={stats?.closedMonth}
           color="text-green-600"
           icon="✅"
+          onClick={() => navigate(`/leads?status=Closed&createdFrom=${monthStartIso}`)}
         />
       </div>
 

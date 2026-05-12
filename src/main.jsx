@@ -11,6 +11,7 @@ import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import Leads from './pages/Leads';
 import Projects from './pages/Projects';
+import Expenses from './pages/Expenses';
 import Team from './pages/Team';
 import MetaWebhook from './pages/MetaWebhook';
 import ActivityLogs from './pages/ActivityLogs';
@@ -42,6 +43,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route index element={<Dashboard />} />
               <Route path="leads" element={<Leads />} />
               <Route path="projects" element={<Projects />} />
+              <Route path="expenses" element={<Expenses />} />
               <Route path="team" element={<Team />} />
               <Route path="meta-webhook" element={<MetaWebhook />} />
               <Route path="activity-logs" element={<ActivityLogs />} />

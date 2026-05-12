@@ -56,3 +56,23 @@ export const projectService = {
   assignAgents: (id, agentIds) =>
     api.put(`/projects/${id}/assign-agents`, { agentIds }).then((r) => r.data),
 };
+
+export const expenseService = {
+  list: (params) => api.get('/expenses', { params }).then((r) => r.data),
+  getOne: (id) => api.get(`/expenses/${id}`).then((r) => r.data),
+  create: (data) => api.post('/expenses', data).then((r) => r.data),
+  update: (id, data) => api.put(`/expenses/${id}`, data).then((r) => r.data),
+  remove: (id) => api.delete(`/expenses/${id}`).then((r) => r.data),
+  approve: (id) => api.post(`/expenses/${id}/approve`).then((r) => r.data),
+  reject: (id, reason) => api.post(`/expenses/${id}/reject`, { reason }).then((r) => r.data),
+  getStats: () => api.get('/expenses/stats').then((r) => r.data),
+  uploadReceipt: (file) => {
+    const form = new FormData();
+    form.append('file', file);
+    return api
+      .post('/expenses/upload-receipt', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      .then((r) => r.data);
+  },
+};
