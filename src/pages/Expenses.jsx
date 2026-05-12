@@ -96,12 +96,13 @@ function ReceiptUploader({ value, mimeType, onUploaded, onClear }) {
 
 const CATEGORIES = ['Marketing', 'Travel', 'Office', 'Hospitality', 'Software', 'Utilities', 'Food', 'Salary', 'Other'];
 const PAYMENT_MODES = ['Cash', 'UPI', 'Card', 'Bank Transfer', 'Cheque', 'Other'];
-const STATUSES = ['Pending', 'Approved', 'Rejected'];
+const STATUSES = ['Pending', 'Approved', 'Rejected', 'Paid'];
 
 const STATUS_STYLE = {
   Pending: 'bg-yellow-100 text-yellow-700',
   Approved: 'bg-green-100 text-green-700',
   Rejected: 'bg-red-100 text-red-700',
+  Paid: 'bg-emerald-100 text-emerald-700',
 };
 
 const CATEGORY_STYLE = {
@@ -274,6 +275,48 @@ function ExpenseFormModal({ expense, projects, onClose, onSubmit, isLoading }) {
   );
 }
 
+/* ─── Mark as Paid Modal ─────────────────────────────────── */
+function MarkPaidModal({ expense, onConfirm, onCancel, isLoading }) {
+  const [paymentReference, setPaymentReference] = useState('');
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="card w-full max-w-sm">
+        <div className="px-5 py-4 border-b border-gray-100">
+          <h2 className="font-semibold text-base text-gray-800">Mark as Paid</h2>
+          <p className="text-xs text-gray-400 mt-0.5">
+            ₹{Number(expense.amount).toLocaleString('en-IN')} to {expense.addedBy?.name}
+          </p>
+        </div>
+        <div className="p-5 space-y-3">
+          <div>
+            <label className="label">Payment Reference (optional)</label>
+            <input
+              className="input"
+              placeholder="e.g. UPI txn ID, UTR, cheque #"
+              value={paymentReference}
+              onChange={(e) => setPaymentReference(e.target.value)}
+            />
+            <p className="text-[10px] text-gray-400 mt-1">
+              Recorded for audit — leave blank if not applicable
+            </p>
+          </div>
+          <div className="flex gap-3 pt-1">
+            <button onClick={onCancel} className="btn-secondary flex-1">Cancel</button>
+            <button
+              onClick={() => onConfirm(paymentReference)}
+              disabled={isLoading}
+              className="btn-primary flex-1 bg-emerald-600 hover:bg-emerald-700"
+            >
+              {isLoading ? 'Saving...' : '💵 Confirm Paid'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Reject Modal ───────────────────────────────────────── */
 function RejectModal({ expense, onConfirm, onCancel }) {
   const [reason, setReason] = useState('');
@@ -307,13 +350,27 @@ function RejectModal({ expense, onConfirm, onCancel }) {
 }
 
 /* ─── Detail Drawer ──────────────────────────────────────── */
-function ExpenseDetail({ expense, canApprove, currentUserId, onClose, onEdit, onDelete, onApprove, onReject }) {
+function ExpenseDetail({
+  expense,
+  canApprove,
+  currentUserId,
+  onClose,
+  onEdit,
+  onDelete,
+  onApprove,
+  onReject,
+  onMarkPaid,
+}) {
   if (!expense) return null;
 
   const isOwner = expense.addedBy?._id === currentUserId;
+  const isAdminUser = canApprove; // canApprove resolves to admin-only in our model
   const canEdit = (isOwner && expense.status === 'Pending') || canApprove;
   const canDelete = (isOwner && expense.status === 'Pending') || canApprove;
-  const canActOnApproval = canApprove && expense.addedBy?._id !== currentUserId && expense.status !== 'Approved';
+  // Admin can approve/pay any expense including their own.
+  // Self-approvals are logged distinctly in the activity log for audit.
+  const canActOnApproval = canApprove && expense.status === 'Pending';
+  const canMarkPaid = isAdminUser && expense.status === 'Approved';
 
   return (
     <div className="fixed inset-0 bg-black/40 z-50 flex justify-end" onClick={onClose}>
@@ -391,9 +448,11 @@ function ExpenseDetail({ expense, canApprove, currentUserId, onClose, onEdit, on
             </p>
           </div>
 
-          {expense.status !== 'Pending' && expense.approvedBy && (
+          {(expense.status === 'Approved' || expense.status === 'Rejected' || expense.status === 'Paid') && expense.approvedBy && (
             <div>
-              <p className="label">{expense.status} by</p>
+              <p className="label">
+                {expense.status === 'Rejected' ? 'Rejected by' : 'Approved by'}
+              </p>
               <p className="text-sm text-gray-700">{expense.approvedBy?.name}</p>
               <p className="text-[10px] text-gray-400 mt-0.5">
                 {new Date(expense.approvedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
@@ -401,6 +460,21 @@ function ExpenseDetail({ expense, canApprove, currentUserId, onClose, onEdit, on
               {expense.rejectionReason && (
                 <p className="text-sm text-red-600 mt-1.5 p-2 bg-red-50 rounded">
                   {expense.rejectionReason}
+                </p>
+              )}
+            </div>
+          )}
+
+          {expense.status === 'Paid' && expense.paidBy && (
+            <div>
+              <p className="label">Paid by</p>
+              <p className="text-sm text-gray-700">{expense.paidBy?.name}</p>
+              <p className="text-[10px] text-gray-400 mt-0.5">
+                {new Date(expense.paidAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
+              </p>
+              {expense.paymentReference && (
+                <p className="text-xs text-gray-700 mt-1.5 p-2 bg-emerald-50 rounded">
+                  <span className="font-medium">Ref:</span> {expense.paymentReference}
                 </p>
               )}
             </div>
@@ -414,6 +488,17 @@ function ExpenseDetail({ expense, canApprove, currentUserId, onClose, onEdit, on
               <button onClick={onReject} className="btn-danger flex-1">
                 ✕ Reject
               </button>
+            </div>
+          )}
+
+          {canMarkPaid && (
+            <div className="pt-3 border-t border-gray-100">
+              <button onClick={onMarkPaid} className="btn-primary w-full bg-emerald-600 hover:bg-emerald-700">
+                💵 Mark as Paid
+              </button>
+              <p className="text-[10px] text-gray-400 mt-1.5 text-center">
+                Confirms the reimbursement has been disbursed
+              </p>
             </div>
           )}
 
@@ -456,6 +541,7 @@ export default function Expenses() {
   const [detailId, setDetailId] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
   const [rejectExpense, setRejectExpense] = useState(null);
+  const [payExpense, setPayExpense] = useState(null);
 
   const queryParams = useMemo(() => {
     const p = { limit: 100 };
@@ -521,6 +607,12 @@ export default function Expenses() {
     onError: (err) => toast.error(err.response?.data?.message || 'Reject failed'),
   });
 
+  const markPaidMutation = useMutation({
+    mutationFn: ({ id, paymentReference }) => expenseService.markPaid(id, paymentReference),
+    onSuccess: () => { invalidate(); setPayExpense(null); toast.success('Marked as paid'); },
+    onError: (err) => toast.error(err.response?.data?.message || 'Failed to mark paid'),
+  });
+
   const updateFilter = (key, value) => setFilters((f) => ({ ...f, [key]: value }));
   const clearFilters = () => setFilters({
     status: '', category: '', project: '', addedBy: '', dateFrom: '', dateTo: '', search: '',
@@ -546,15 +638,17 @@ export default function Expenses() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 mb-5">
         <StatCard
           label={isAdmin ? 'Company — This Month' : 'My Spend — This Month'}
+          sub={`${stats?.thisMonthCount || 0} expenses`}
           value={fmtINR(stats?.thisMonth)}
           icon="💰"
         />
         <StatCard
-          label={isAdmin ? 'Approved This Month' : 'My Approved This Month'}
-          sub={`${stats?.thisMonthCount || 0} expenses`}
-          value={fmtINR(stats?.thisMonth)}
-          color="text-green-600"
-          icon="✅"
+          label={isAdmin ? 'Awaiting Payment' : 'My Awaiting Payment'}
+          value={fmtINR(stats?.awaitingPaymentTotal)}
+          sub={`${stats?.awaitingPaymentCount || 0} expense${(stats?.awaitingPaymentCount || 0) === 1 ? '' : 's'}`}
+          color={stats?.awaitingPaymentCount > 0 ? 'text-emerald-600' : 'text-gray-900'}
+          icon="💵"
+          onClick={() => updateFilter('status', 'Approved')}
         />
         <StatCard
           label={isAdmin ? 'Pending Approvals' : 'My Pending'}
@@ -759,6 +853,7 @@ export default function Expenses() {
           onDelete={() => setDeleteId(detailExpense._id)}
           onApprove={() => approveMutation.mutate(detailExpense._id)}
           onReject={() => setRejectExpense(detailExpense)}
+          onMarkPaid={() => setPayExpense(detailExpense)}
         />
       )}
 
@@ -777,6 +872,17 @@ export default function Expenses() {
           expense={rejectExpense}
           onCancel={() => setRejectExpense(null)}
           onConfirm={(reason) => rejectMutation.mutate({ id: rejectExpense._id, reason })}
+        />
+      )}
+
+      {payExpense && (
+        <MarkPaidModal
+          expense={payExpense}
+          isLoading={markPaidMutation.isPending}
+          onCancel={() => setPayExpense(null)}
+          onConfirm={(paymentReference) =>
+            markPaidMutation.mutate({ id: payExpense._id, paymentReference })
+          }
         />
       )}
     </div>

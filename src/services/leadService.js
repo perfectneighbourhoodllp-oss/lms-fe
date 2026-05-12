@@ -65,6 +65,8 @@ export const expenseService = {
   remove: (id) => api.delete(`/expenses/${id}`).then((r) => r.data),
   approve: (id) => api.post(`/expenses/${id}/approve`).then((r) => r.data),
   reject: (id, reason) => api.post(`/expenses/${id}/reject`, { reason }).then((r) => r.data),
+  markPaid: (id, paymentReference) =>
+    api.post(`/expenses/${id}/mark-paid`, { paymentReference }).then((r) => r.data),
   getStats: () => api.get('/expenses/stats').then((r) => r.data),
   uploadReceipt: (file) => {
     const form = new FormData();
