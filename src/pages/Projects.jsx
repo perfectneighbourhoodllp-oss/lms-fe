@@ -13,8 +13,10 @@ const projectService = {
   create: (data) => api.post('/projects', data).then((r) => r.data),
   update: (id, data) => api.put(`/projects/${id}`, data).then((r) => r.data),
   remove: (id) => api.delete(`/projects/${id}`).then((r) => r.data),
-  assignAgents: (id, agentIds) =>
-    api.put(`/projects/${id}/assign-agents`, { agentIds }).then((r) => r.data),
+  assignAgents: (id, agentIds, agentWeights) =>
+    api
+      .put(`/projects/${id}/assign-agents`, { agentIds, agentWeights })
+      .then((r) => r.data),
 };
 
 const userService = {
@@ -26,18 +28,64 @@ function AssignAgentsPanel({ project, allUsers, onSave, onClose }) {
   const salesUsers = allUsers.filter((u) => u.role === 'sales' || u.role === 'manager');
   const currentIds = new Set((project.assignedAgents || []).map((a) => a._id || a));
   const [selected, setSelected] = useState(new Set(currentIds));
+  // Hydrate weights from the project; default to 1 for any selected agent missing an entry
+  const [weights, setWeights] = useState(() => {
+    const w = {};
+    for (const id of currentIds) {
+      w[id] = project.agentWeights?.[id] ?? 1;
+    }
+    return w;
+  });
 
   const toggle = (id) => {
     setSelected((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+        // Auto-init weight to 1 the first time an agent is selected
+        if (weights[id] === undefined) {
+          setWeights((w) => ({ ...w, [id]: 1 }));
+        }
+      }
       return next;
     });
   };
 
+  const setWeight = (id, value) => {
+    // Clamp to 1–10 on the way in; allow empty string transiently for editing
+    if (value === '') {
+      setWeights((w) => ({ ...w, [id]: '' }));
+      return;
+    }
+    const n = Math.max(1, Math.min(10, Math.floor(Number(value) || 1)));
+    setWeights((w) => ({ ...w, [id]: n }));
+  };
+
+  const resetToEqual = () => {
+    const reset = {};
+    for (const id of selected) reset[id] = 1;
+    setWeights(reset);
+  };
+
+  // Compute share % for each selected agent
+  const selectedIds = [...selected];
+  const totalWeight = selectedIds.reduce((sum, id) => sum + (Number(weights[id]) || 1), 0);
+  const hasCustomWeights = selectedIds.some((id) => (Number(weights[id]) || 1) !== 1);
+
+  const handleSave = () => {
+    // Build a clean weights map keyed only by selected IDs, with numeric values
+    const clean = {};
+    for (const id of selectedIds) {
+      clean[id] = Math.max(1, Math.min(10, Math.floor(Number(weights[id]) || 1)));
+    }
+    onSave(selectedIds, clean);
+  };
+
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="card w-full max-w-sm">
+      <div className="card w-full max-w-md max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <div>
             <h2 className="font-semibold text-base text-gray-800">Assign Agents</h2>
@@ -46,36 +94,85 @@ function AssignAgentsPanel({ project, allUsers, onSave, onClose }) {
           <button onClick={onClose} className="btn-ghost text-lg px-2 py-0.5">×</button>
         </div>
 
-        <div className="p-4 space-y-2 max-h-72 overflow-y-auto">
+        <div className="px-4 pt-3 pb-1 text-[11px] text-gray-500 flex items-center justify-between">
+          <span>Set proportion via per-agent weight (1–10)</span>
+          {hasCustomWeights && (
+            <button
+              onClick={resetToEqual}
+              className="text-blue-600 hover:underline"
+              type="button"
+            >
+              Reset to equal
+            </button>
+          )}
+        </div>
+
+        <div className="p-4 pt-2 space-y-2 overflow-y-auto flex-1">
           {salesUsers.length === 0 && (
             <p className="text-sm text-gray-400 text-center py-4">No sales agents found.</p>
           )}
-          {salesUsers.map((u) => (
-            <label
-              key={u._id}
-              className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer border transition-colors ${
-                selected.has(u._id) ? 'border-blue-300 bg-blue-50' : 'border-gray-100 hover:bg-gray-50'
-              }`}
-            >
-              <input
-                type="checkbox"
-                checked={selected.has(u._id)}
-                onChange={() => toggle(u._id)}
-                className="h-4 w-4 rounded border-gray-300 text-blue-600"
-              />
-              <div>
-                <p className="text-sm font-medium text-gray-800">{u.name}</p>
-                <p className="text-xs text-gray-400">{u.email} · {u.role}</p>
+          {salesUsers.map((u) => {
+            const isSelected = selected.has(u._id);
+            const w = Number(weights[u._id]) || 1;
+            const share = isSelected && totalWeight > 0 ? Math.round((w / totalWeight) * 100) : 0;
+            return (
+              <div
+                key={u._id}
+                className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
+                  isSelected ? 'border-blue-300 bg-blue-50' : 'border-gray-100 hover:bg-gray-50'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => toggle(u._id)}
+                  className="h-4 w-4 rounded border-gray-300 text-blue-600 cursor-pointer flex-shrink-0"
+                  aria-label={`Select ${u.name}`}
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-800 truncate">{u.name}</p>
+                  <p className="text-xs text-gray-400 truncate">{u.email} · {u.role}</p>
+                </div>
+                {isSelected && (
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <input
+                      type="number"
+                      min="1"
+                      max="10"
+                      step="1"
+                      value={weights[u._id] ?? 1}
+                      onChange={(e) => setWeight(u._id, e.target.value)}
+                      onBlur={(e) => setWeight(u._id, e.target.value || 1)}
+                      className="w-14 px-2 py-1 text-sm text-center border border-gray-300 rounded focus:border-blue-400 focus:outline-none"
+                      aria-label={`Weight for ${u.name}`}
+                    />
+                    <span className="badge bg-blue-100 text-blue-700 min-w-[3rem] text-center">
+                      {share}%
+                    </span>
+                  </div>
+                )}
               </div>
-            </label>
-          ))}
+            );
+          })}
         </div>
 
-        <div className="px-4 pb-4 flex gap-3">
+        {selected.size > 0 && (
+          <div className="px-4 py-2.5 border-t border-gray-100 bg-gray-50 text-xs text-gray-600 flex items-center justify-between">
+            <span>
+              Total weight: <span className="font-semibold text-gray-800">{totalWeight}</span>
+            </span>
+            <span className="text-gray-500">
+              1 cycle = {totalWeight} lead{totalWeight !== 1 ? 's' : ''}
+            </span>
+          </div>
+        )}
+
+        <div className="p-4 flex gap-3 border-t border-gray-100">
           <button onClick={onClose} className="btn-secondary flex-1">Cancel</button>
           <button
-            onClick={() => onSave([...selected])}
+            onClick={handleSave}
             className="btn-primary flex-1"
+            disabled={selected.size === 0}
           >
             Save ({selected.size} agent{selected.size !== 1 ? 's' : ''})
           </button>
@@ -191,7 +288,8 @@ export default function Projects() {
   });
 
   const assignMutation = useMutation({
-    mutationFn: ({ id, agentIds }) => projectService.assignAgents(id, agentIds),
+    mutationFn: ({ id, agentIds, agentWeights }) =>
+      projectService.assignAgents(id, agentIds, agentWeights),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['projects'] }); setAssignPanel(null); toast.success('Agents updated'); },
     onError: () => toast.error('Failed to assign agents'),
   });
@@ -248,22 +346,44 @@ export default function Projects() {
 
               {/* Assigned agents */}
               <div className="mb-3">
-                <p className="text-xs font-medium text-gray-500 mb-1.5">
-                  Assigned Agents ({p.assignedAgents?.length || 0})
-                </p>
+                <div className="flex items-center justify-between mb-1.5">
+                  <p className="text-xs font-medium text-gray-500">
+                    Assigned Agents ({p.assignedAgents?.length || 0})
+                  </p>
+                  {p.agentWeights && Object.keys(p.agentWeights).length > 0 && (
+                    <span className="text-[10px] text-purple-600 font-medium">⚖ Proportional</span>
+                  )}
+                </div>
                 {p.assignedAgents?.length > 0 ? (
                   <div className="flex flex-wrap gap-1.5">
-                    {p.assignedAgents.map((agent) => (
-                      <span
-                        key={agent._id}
-                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs"
-                      >
-                        <span className="w-4 h-4 bg-blue-200 rounded-full flex items-center justify-center text-[10px] font-bold">
-                          {agent.name?.[0]?.toUpperCase()}
-                        </span>
-                        {agent.name}
-                      </span>
-                    ))}
+                    {(() => {
+                      const totalW = p.assignedAgents.reduce(
+                        (sum, a) => sum + (Number(p.agentWeights?.[a._id]) || 1),
+                        0
+                      );
+                      return p.assignedAgents.map((agent) => {
+                        const w = Number(p.agentWeights?.[agent._id]) || 1;
+                        const share = totalW > 0 ? Math.round((w / totalW) * 100) : 0;
+                        const isCustom = w !== 1;
+                        return (
+                          <span
+                            key={agent._id}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full text-xs"
+                            title={`Weight ${w} · ${share}% share`}
+                          >
+                            <span className="w-4 h-4 bg-blue-200 rounded-full flex items-center justify-center text-[10px] font-bold">
+                              {agent.name?.[0]?.toUpperCase()}
+                            </span>
+                            {agent.name}
+                            {isCustom && (
+                              <span className="ml-0.5 px-1 bg-blue-200 rounded-full text-[9px] font-bold">
+                                ×{w}
+                              </span>
+                            )}
+                          </span>
+                        );
+                      });
+                    })()}
                   </div>
                 ) : (
                   <p className="text-xs text-orange-500 italic">
@@ -334,7 +454,9 @@ export default function Projects() {
           project={assignPanel}
           allUsers={allUsers}
           onClose={() => setAssignPanel(null)}
-          onSave={(agentIds) => assignMutation.mutate({ id: assignPanel._id, agentIds })}
+          onSave={(agentIds, agentWeights) =>
+            assignMutation.mutate({ id: assignPanel._id, agentIds, agentWeights })
+          }
         />
       )}
 

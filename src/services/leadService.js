@@ -53,8 +53,10 @@ export const projectService = {
   create: (data) => api.post('/projects', data).then((r) => r.data),
   update: (id, data) => api.put(`/projects/${id}`, data).then((r) => r.data),
   remove: (id) => api.delete(`/projects/${id}`).then((r) => r.data),
-  assignAgents: (id, agentIds) =>
-    api.put(`/projects/${id}/assign-agents`, { agentIds }).then((r) => r.data),
+  assignAgents: (id, agentIds, agentWeights) =>
+    api
+      .put(`/projects/${id}/assign-agents`, { agentIds, agentWeights })
+      .then((r) => r.data),
 };
 
 export const expenseService = {
