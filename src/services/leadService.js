@@ -57,6 +57,8 @@ export const projectService = {
     api
       .put(`/projects/${id}/assign-agents`, { agentIds, agentWeights })
       .then((r) => r.data),
+  assignManagers: (id, managerIds) =>
+    api.put(`/projects/${id}/assign-managers`, { managerIds }).then((r) => r.data),
 };
 
 export const expenseService = {

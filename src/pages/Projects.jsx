@@ -17,6 +17,8 @@ const projectService = {
     api
       .put(`/projects/${id}/assign-agents`, { agentIds, agentWeights })
       .then((r) => r.data),
+  assignManagers: (id, managerIds) =>
+    api.put(`/projects/${id}/assign-managers`, { managerIds }).then((r) => r.data),
 };
 
 const userService = {
@@ -182,6 +184,78 @@ function AssignAgentsPanel({ project, allUsers, onSave, onClose }) {
   );
 }
 
+/* ─── Manager Assignment Panel (admin only) ───────────────── */
+function AssignManagersPanel({ project, allUsers, onSave, onClose }) {
+  const managerUsers = allUsers.filter((u) => u.role === 'manager');
+  const currentIds = new Set((project.assignedManagers || []).map((m) => m._id || m));
+  const [selected, setSelected] = useState(new Set(currentIds));
+
+  const toggle = (id) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="card w-full max-w-md max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <div>
+            <h2 className="font-semibold text-base text-gray-800">Assign Managers</h2>
+            <p className="text-xs text-gray-400 mt-0.5">{project.name}</p>
+          </div>
+          <button onClick={onClose} className="btn-ghost text-lg px-2 py-0.5">×</button>
+        </div>
+
+        <div className="px-4 pt-3 pb-1 text-[11px] text-gray-500">
+          Managers selected here will be scoped to this project (and any others they're
+          assigned to). Managers with zero project assignments see everything by default.
+        </div>
+
+        <div className="p-4 pt-2 space-y-2 overflow-y-auto flex-1">
+          {managerUsers.length === 0 && (
+            <p className="text-sm text-gray-400 text-center py-4">
+              No manager users found. Create one in Team page.
+            </p>
+          )}
+          {managerUsers.map((u) => {
+            const isSelected = selected.has(u._id);
+            return (
+              <label
+                key={u._id}
+                className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer border transition-colors ${
+                  isSelected ? 'border-purple-300 bg-purple-50' : 'border-gray-100 hover:bg-gray-50'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => toggle(u._id)}
+                  className="h-4 w-4 rounded border-gray-300 text-purple-600"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-800 truncate">{u.name}</p>
+                  <p className="text-xs text-gray-400 truncate">{u.email}</p>
+                </div>
+                <span className="badge bg-blue-100 text-blue-700">{u.role}</span>
+              </label>
+            );
+          })}
+        </div>
+
+        <div className="p-4 flex gap-3 border-t border-gray-100">
+          <button onClick={onClose} className="btn-secondary flex-1">Cancel</button>
+          <button onClick={() => onSave([...selected])} className="btn-primary flex-1">
+            Save ({selected.size} manager{selected.size !== 1 ? 's' : ''})
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Create / Edit Modal ─────────────────────────────────── */
 function ProjectFormModal({ project, onClose, onSubmit, isLoading }) {
   const { register, handleSubmit, formState: { errors } } = useForm({
@@ -252,10 +326,12 @@ export default function Projects() {
   const qc = useQueryClient();
   const canEdit = user?.role === 'admin' || user?.role === 'manager';
   const canDelete = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin';
 
   const [showForm, setShowForm] = useState(false);
   const [editProject, setEditProject] = useState(null);
   const [assignPanel, setAssignPanel] = useState(null);
+  const [managersPanel, setManagersPanel] = useState(null);
   const [deleteProject, setDeleteProject] = useState(null);
 
   const { data: projects = [], isLoading } = useQuery({
@@ -292,6 +368,17 @@ export default function Projects() {
       projectService.assignAgents(id, agentIds, agentWeights),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['projects'] }); setAssignPanel(null); toast.success('Agents updated'); },
     onError: () => toast.error('Failed to assign agents'),
+  });
+
+  const assignManagersMutation = useMutation({
+    mutationFn: ({ id, managerIds }) => projectService.assignManagers(id, managerIds),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['projects'] });
+      setManagersPanel(null);
+      toast.success('Managers updated');
+    },
+    onError: (err) =>
+      toast.error(err.response?.data?.message || 'Failed to assign managers'),
   });
 
   const TYPE_COLOR = {
@@ -392,15 +479,50 @@ export default function Projects() {
                 )}
               </div>
 
+              {/* Assigned managers */}
+              <div className="mb-3">
+                <p className="text-xs font-medium text-gray-500 mb-1.5">
+                  Project Managers ({p.assignedManagers?.length || 0})
+                </p>
+                {p.assignedManagers?.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {p.assignedManagers.map((m) => (
+                      <span
+                        key={m._id}
+                        className="inline-flex items-center gap-1 px-2 py-0.5 bg-purple-50 text-purple-700 rounded-full text-xs"
+                        title={`${m.email} · scoped to this project`}
+                      >
+                        <span className="w-4 h-4 bg-purple-200 rounded-full flex items-center justify-center text-[10px] font-bold">
+                          {m.name?.[0]?.toUpperCase()}
+                        </span>
+                        {m.name}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400 italic">
+                    No specific manager — all unscoped managers can see this project
+                  </p>
+                )}
+              </div>
+
               {/* Actions */}
               {canEdit && (
-                <div className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-gray-50">
+                <div className="flex flex-col sm:flex-row flex-wrap gap-2 pt-3 border-t border-gray-50">
                   <button
                     onClick={() => setAssignPanel(p)}
                     className="btn-secondary w-full sm:flex-1 text-xs py-1.5"
                   >
                     👥 Assign Agents
                   </button>
+                  {isAdmin && (
+                    <button
+                      onClick={() => setManagersPanel(p)}
+                      className="btn-secondary w-full sm:flex-1 text-xs py-1.5"
+                    >
+                      🧑‍💼 Managers
+                    </button>
+                  )}
                   <button
                     onClick={() => setEditProject(p)}
                     className="btn-secondary w-full sm:flex-1 text-xs py-1.5"
@@ -456,6 +578,18 @@ export default function Projects() {
           onClose={() => setAssignPanel(null)}
           onSave={(agentIds, agentWeights) =>
             assignMutation.mutate({ id: assignPanel._id, agentIds, agentWeights })
+          }
+        />
+      )}
+
+      {/* Manager assignment panel (admin only) */}
+      {managersPanel && (
+        <AssignManagersPanel
+          project={managersPanel}
+          allUsers={allUsers}
+          onClose={() => setManagersPanel(null)}
+          onSave={(managerIds) =>
+            assignManagersMutation.mutate({ id: managersPanel._id, managerIds })
           }
         />
       )}
