@@ -12,10 +12,9 @@ export default function AvailabilityToggle() {
   const [submitting, setSubmitting] = useState(false);
 
   if (!user) return null;
-  // Only manager + admin role users get a self-toggle.
-  // Admins can't actually pause (blocked at the backend) but the button is hidden anyway.
-  // Sales agents must be paused by their admin/manager via the Team page.
-  if (user.role !== 'manager') return null;
+  // Sales agents and managers get a self-pause toggle.
+  // Admin is excluded — they can't pause themselves (backend enforces this too).
+  if (user.role === 'admin') return null;
   // Default to true if the field hasn't propagated yet (existing accounts pre-feature)
   const isAvailable = user.isAvailable !== false;
 
