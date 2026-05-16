@@ -103,7 +103,7 @@ function LeadRow({ lead, onClick, subtitle }) {
 }
 
 /* ─── Pipeline bar visual ─────────────────────────────────── */
-function PipelineBar({ pipeline }) {
+function PipelineBar({ pipeline, onStageClick }) {
   const stages = ['New', 'Called', 'Interested', 'Webinar', 'Site Visit', 'Closed'];
   const colors = {
     New: 'bg-blue-500',
@@ -120,11 +120,23 @@ function PipelineBar({ pipeline }) {
       {stages.map((stage) => {
         const count = pipeline[stage] || 0;
         const widthPct = (count / maxCount) * 100;
+        const hasLeads = count > 0;
         return (
-          <div key={stage} className="flex items-center gap-2">
-            <div className="w-20 sm:w-24 text-xs text-gray-600 flex-shrink-0">{stage}</div>
+          <button
+            key={stage}
+            onClick={() => hasLeads && onStageClick?.(stage)}
+            disabled={!hasLeads}
+            className={`w-full flex items-center gap-2 text-left rounded px-1 py-0.5 transition-colors ${
+              hasLeads ? 'hover:bg-gray-50 cursor-pointer active:bg-gray-100' : 'cursor-default'
+            }`}
+            title={hasLeads ? `View ${count} ${stage} lead${count !== 1 ? 's' : ''}` : `No leads in ${stage}`}
+          >
+            <div className="w-20 sm:w-24 text-xs text-gray-600 flex-shrink-0 flex items-center gap-1">
+              {stage}
+              {hasLeads && <span className="text-gray-300 text-[10px]">›</span>}
+            </div>
             <div className="flex-1 bg-gray-100 rounded h-5 sm:h-6 overflow-hidden">
-              {count > 0 && (
+              {hasLeads && (
                 <div
                   className={`h-full ${colors[stage]} flex items-center px-2 text-white text-xs font-semibold transition-all`}
                   style={{ width: `${Math.max(widthPct, 8)}%` }}
@@ -133,7 +145,7 @@ function PipelineBar({ pipeline }) {
                 </div>
               )}
             </div>
-          </div>
+          </button>
         );
       })}
     </div>
@@ -206,6 +218,8 @@ export default function AgentProfile() {
   const openLead = (leadId) => navigate(`/leads?focus=${leadId}`);
   const openAllOverdue = () => navigate(`/leads?assignedTo=${user._id}&overdue=true`);
   const openAllForAgent = () => navigate(`/leads?assignedTo=${user._id}`);
+  const openStageLeads = (status) =>
+    navigate(`/leads?assignedTo=${user._id}&status=${encodeURIComponent(status)}`);
 
   return (
     <div className="p-3 sm:p-6 max-w-4xl mx-auto">
@@ -339,8 +353,9 @@ export default function AgentProfile() {
         defaultOpen={true}
       >
         <div className="mb-4">
-          <PipelineBar pipeline={pipeline} />
+          <PipelineBar pipeline={pipeline} onStageClick={openStageLeads} />
         </div>
+        <p className="text-[10px] text-gray-400 mb-3">Tap any stage to see those leads</p>
         <div className="grid grid-cols-3 gap-2 text-center pt-3 border-t border-gray-100">
           <div>
             <p className="text-xs text-gray-500">Active</p>
