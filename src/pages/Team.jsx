@@ -1,6 +1,7 @@
 ﻿import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
+import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import PasswordInput from '../components/PasswordInput';
@@ -254,6 +255,9 @@ export default function Team() {
 
   const renderActions = (u) => (
     <div className="flex flex-wrap gap-2">
+      <Link to={`/team/${u._id}`} className="btn-secondary text-xs py-1 px-2">
+        Profile
+      </Link>
       <button onClick={() => setEditAgent(u)} className="btn-secondary text-xs py-1 px-2">
         Edit
       </button>
@@ -340,7 +344,10 @@ export default function Team() {
                 {filtered.map((u) => (
                   <div key={u._id} className={`p-4 ${!u.isActive ? 'opacity-50' : ''}`}>
                     <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-2.5 min-w-0">
+                      <Link
+                        to={`/team/${u._id}`}
+                        className="flex items-center gap-2.5 min-w-0 hover:opacity-80 active:opacity-60"
+                      >
                         <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-semibold text-sm flex-shrink-0">
                           {u.name?.[0]?.toUpperCase()}
                         </div>
@@ -348,7 +355,7 @@ export default function Team() {
                           <p className="font-medium text-gray-900 text-sm truncate">{u.name}</p>
                           <p className="text-xs text-gray-400 truncate">{u.email}</p>
                         </div>
-                      </div>
+                      </Link>
                       <div className="flex items-center gap-1 flex-wrap justify-end">
                         <span className={`badge ${u.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
                           {u.isActive ? 'Active' : 'Inactive'}
@@ -399,15 +406,18 @@ export default function Team() {
                     {filtered.map((u) => (
                       <tr key={u._id} className={`table-row-hover ${!u.isActive ? 'opacity-50' : ''}`}>
                         <td className="td">
-                          <div className="flex items-center gap-2.5">
+                          <Link
+                            to={`/team/${u._id}`}
+                            className="flex items-center gap-2.5 hover:opacity-80"
+                          >
                             <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-semibold text-sm flex-shrink-0">
                               {u.name?.[0]?.toUpperCase()}
                             </div>
                             <div>
-                              <div className="font-medium text-gray-900 text-sm">{u.name}</div>
+                              <div className="font-medium text-gray-900 text-sm hover:text-blue-600">{u.name}</div>
                               <div className="text-xs text-gray-400">{u.email}</div>
                             </div>
-                          </div>
+                          </Link>
                         </td>
 
                         <td className="td">

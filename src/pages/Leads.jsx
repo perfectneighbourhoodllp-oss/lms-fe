@@ -238,13 +238,15 @@ export default function Leads() {
           </p>
         </div>
         <div className="flex w-full sm:w-auto gap-2">
-          <button
-            onClick={handleExport}
-            disabled={exporting}
-            className="btn-secondary flex-1 sm:flex-none"
-          >
-            {exporting ? 'Exporting…' : '⬇ Export'}
-          </button>
+          {isAdmin && (
+            <button
+              onClick={handleExport}
+              disabled={exporting}
+              className="btn-secondary flex-1 sm:flex-none"
+            >
+              {exporting ? 'Exporting…' : '⬇ Export'}
+            </button>
+          )}
           {canAssign && (
             <button onClick={() => setShowBulk(true)} className="btn-secondary flex-1 sm:flex-none">
               ⬆ Bulk Upload

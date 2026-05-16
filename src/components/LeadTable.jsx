@@ -1,5 +1,5 @@
 export const STATUSES = ['New', 'Called', 'Interested', 'Webinar', 'Site Visit', 'Closed', 'Not Interested', 'Dead'];
-export const SOURCES = ['Instagram', 'Ads', 'Referral', 'Walk-in', 'Website', 'Other'];
+export const SOURCES = ['Instagram', 'Ads', 'Referral', 'Walk-in', 'Website', 'Database', 'Other'];
 
 export const STATUS_STYLE = {
   New: 'bg-blue-100 text-blue-700',
