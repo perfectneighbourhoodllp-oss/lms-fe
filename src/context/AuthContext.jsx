@@ -19,11 +19,33 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  /**
+   * Step 1 of admin login. Returns:
+   *   • { requiresOtp: true, email } — caller must follow up with verifyOtp()
+   *   • user object — non-admin: token already set
+   */
   const login = async (email, password) => {
     const { data } = await api.post('/auth/login', { email, password });
+    if (data.requiresOtp) {
+      // Admin path — token NOT issued yet. Caller renders the OTP screen.
+      return { requiresOtp: true, email: data.email, message: data.message };
+    }
     localStorage.setItem('token', data.token);
     setUser(data.user);
     return data.user;
+  };
+
+  /** Step 2 of admin login — submits the 6-digit code, receives JWT. */
+  const verifyOtp = async (email, otp) => {
+    const { data } = await api.post('/auth/verify-otp', { email, otp });
+    localStorage.setItem('token', data.token);
+    setUser(data.user);
+    return data.user;
+  };
+
+  const resendOtp = async (email) => {
+    const { data } = await api.post('/auth/resend-otp', { email });
+    return data;
   };
 
   const register = async (payload) => {
@@ -44,7 +66,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, loading, login, verifyOtp, resendOtp, register, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   );

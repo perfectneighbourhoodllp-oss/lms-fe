@@ -478,8 +478,13 @@ function SheetConfigs({ isAdmin }) {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, ...data }) => sheetService.update(id, data),
-    onSuccess: () => {
+    onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ['sheet-configs'] });
+      // Show a tailored toast when this is a pause/resume toggle (no other fields)
+      if (Object.keys(vars).length === 2 && 'isActive' in vars) {
+        toast.success(vars.isActive ? 'Sheet resumed — syncing again' : 'Sheet paused — no new imports');
+        return;
+      }
       setEditingId(null);
       toast.success('Mapping updated');
     },
@@ -538,16 +543,33 @@ function SheetConfigs({ isAdmin }) {
                   {s.lastSyncedRow} rows synced
                 </p>
               </div>
-              <div className="flex gap-1.5 flex-shrink-0">
+              <div className="flex gap-1.5 flex-shrink-0 flex-wrap justify-end">
                 <button
                   onClick={() => syncMutation.mutate(s._id)}
-                  disabled={syncMutation.isPending}
+                  disabled={syncMutation.isPending || !s.isActive}
                   className="btn-secondary text-xs py-1 px-2"
+                  title={!s.isActive ? 'Resume the sheet to sync' : 'Manually sync now'}
                 >
                   {syncMutation.isPending ? '...' : 'Sync Now'}
                 </button>
                 {isAdmin && (
                   <>
+                    <button
+                      onClick={() => updateMutation.mutate({ id: s._id, isActive: !s.isActive })}
+                      disabled={updateMutation.isPending}
+                      className={`text-xs py-1 px-2 btn ${
+                        s.isActive
+                          ? 'bg-yellow-50 text-yellow-700 border border-yellow-200 hover:bg-yellow-100'
+                          : 'bg-green-50 text-green-700 border border-green-200 hover:bg-green-100'
+                      }`}
+                      title={
+                        s.isActive
+                          ? 'Pause this sheet — stops auto-sync + blocks incoming Apps Script webhooks'
+                          : 'Resume this sheet — re-enables auto-sync and webhooks'
+                      }
+                    >
+                      {s.isActive ? '⏸ Pause' : '▶ Resume'}
+                    </button>
                     <button
                       onClick={() => setEditingId(editingId === s._id ? null : s._id)}
                       className="btn-secondary text-xs py-1 px-2"
