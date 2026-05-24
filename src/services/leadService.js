@@ -42,6 +42,7 @@ export const sheetService = {
   update: (id, data) => api.put(`/sheets/${id}`, data).then((r) => r.data),
   remove: (id) => api.delete(`/sheets/${id}`).then((r) => r.data),
   sync: (id) => api.post(`/sheets/${id}/sync`).then((r) => r.data),
+  getSyncLogs: (params) => api.get('/sheets/sync-logs', { params }).then((r) => r.data),
 };
 
 export const activityLogService = {

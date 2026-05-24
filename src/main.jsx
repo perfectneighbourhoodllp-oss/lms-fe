@@ -16,6 +16,7 @@ import Team from './pages/Team';
 import AgentProfile from './pages/AgentProfile';
 import MetaWebhook from './pages/MetaWebhook';
 import ActivityLogs from './pages/ActivityLogs';
+import SheetSyncLogs from './pages/SheetSyncLogs';
 import AgentPerformance from './pages/AgentPerformance';
 import './index.css';
 
@@ -49,6 +50,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path="team/:id" element={<AgentProfile />} />
               <Route path="meta-webhook" element={<MetaWebhook />} />
               <Route path="activity-logs" element={<ActivityLogs />} />
+              <Route path="sheet-sync-logs" element={<SheetSyncLogs />} />
               <Route path="agents" element={<AgentPerformance />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
