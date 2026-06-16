@@ -1,9 +1,10 @@
-export const STATUSES = ['New', 'Called', 'Interested', 'Webinar', 'Site Visit', 'Closed', 'Not Interested', 'Dead'];
+export const STATUSES = ['New', 'Called', 'RNR', 'Interested', 'Webinar', 'Site Visit', 'Closed', 'Not Interested', 'Dead'];
 export const SOURCES = ['Instagram', 'Ads', 'Referral', 'Walk-in', 'Website', 'Database', 'Other'];
 
 export const STATUS_STYLE = {
   New: 'bg-blue-100 text-blue-700',
   Called: 'bg-yellow-100 text-yellow-700',
+  RNR: 'bg-amber-100 text-amber-700',
   Interested: 'bg-purple-100 text-purple-700',
   Webinar: 'bg-cyan-100 text-cyan-700',
   'Site Visit': 'bg-orange-100 text-orange-700',
