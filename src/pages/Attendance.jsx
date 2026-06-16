@@ -108,6 +108,62 @@ function MapPin({ punch, label }) {
   );
 }
 
+// Thumbnail link for a check-in selfie (shared by mobile cards + desktop table).
+function SelfieThumb({ url, size = 'w-9 h-9' }) {
+  if (!url) return <span className="text-gray-300">—</span>;
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer">
+      <img src={url} alt="Selfie" className={`${size} object-cover rounded border border-gray-200`} />
+    </a>
+  );
+}
+
+// Stacked record card — the mobile presentation of a row (used in both history & team views).
+function RecordCard({ r, showMember }) {
+  return (
+    <div className="border border-gray-100 rounded-lg p-3">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          {showMember && (
+            <div className="font-medium text-gray-800 text-sm truncate">{r.user?.name || '—'}</div>
+          )}
+          <div className="text-xs text-gray-400">
+            {fmtDate(r.date)} · {workModeLabel(r.workMode)}
+            {showMember && r.user?.role ? ` · ${r.user.role}` : ''}
+          </div>
+        </div>
+        {showMember && <SelfieThumb url={r.checkIn?.selfieUrl} />}
+      </div>
+
+      <div className="mt-3 grid grid-cols-3 gap-2 text-sm">
+        <div>
+          <div className="text-[11px] text-gray-400">In</div>
+          <InTime at={r.checkIn?.at} />
+        </div>
+        <div>
+          <div className="text-[11px] text-gray-400">Out</div>
+          {fmtTime(r.checkOut?.at)}
+        </div>
+        <div>
+          <div className="text-[11px] text-gray-400">Duration</div>
+          {duration(r.checkIn?.at, r.checkOut?.at)}
+        </div>
+      </div>
+
+      <div className="mt-3 flex gap-5 text-sm">
+        <span className="inline-flex items-center gap-1">
+          <span className="text-[11px] text-gray-400">In:</span>
+          <MapPin punch={r.checkIn} label="Check-in" />
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <span className="text-[11px] text-gray-400">Out:</span>
+          <MapPin punch={r.checkOut} label="Check-out" />
+        </span>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Check In / Check Out card ──────────────────────────── */
 function PunchCard() {
   const qc = useQueryClient();
@@ -332,36 +388,46 @@ function MyHistory() {
         {items.length === 0 ? (
           <p className="text-sm text-gray-400">No attendance records yet.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
-                  <th className="py-2 pr-4">Date</th>
-                  <th className="py-2 pr-4">Mode</th>
-                  <th className="py-2 pr-4">In</th>
-                  <th className="py-2 pr-4">Out</th>
-                  <th className="py-2 pr-4">Duration</th>
-                  <th className="py-2 pr-4">In loc.</th>
-                  <th className="py-2">Out loc.</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((r) => (
-                  <tr key={r._id} className="border-b border-gray-50 table-row-hover">
-                    <td className="py-2 pr-4 whitespace-nowrap">{fmtDate(r.date)}</td>
-                    <td className="py-2 pr-4 whitespace-nowrap">{workModeLabel(r.workMode)}</td>
-                    <td className="py-2 pr-4 whitespace-nowrap"><InTime at={r.checkIn?.at} /></td>
-                    <td className="py-2 pr-4 whitespace-nowrap">{fmtTime(r.checkOut?.at)}</td>
-                    <td className="py-2 pr-4 whitespace-nowrap">
-                      {duration(r.checkIn?.at, r.checkOut?.at)}
-                    </td>
-                    <td className="py-2 pr-4"><MapPin punch={r.checkIn} label="Check-in" /></td>
-                    <td className="py-2"><MapPin punch={r.checkOut} label="Check-out" /></td>
+          <>
+            {/* Mobile: stacked cards */}
+            <div className="space-y-2 sm:hidden">
+              {items.map((r) => (
+                <RecordCard key={r._id} r={r} showMember={false} />
+              ))}
+            </div>
+
+            {/* Desktop: table */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
+                    <th className="py-2 pr-4">Date</th>
+                    <th className="py-2 pr-4">Mode</th>
+                    <th className="py-2 pr-4">In</th>
+                    <th className="py-2 pr-4">Out</th>
+                    <th className="py-2 pr-4">Duration</th>
+                    <th className="py-2 pr-4">In loc.</th>
+                    <th className="py-2">Out loc.</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {items.map((r) => (
+                    <tr key={r._id} className="border-b border-gray-50 table-row-hover">
+                      <td className="py-2 pr-4 whitespace-nowrap">{fmtDate(r.date)}</td>
+                      <td className="py-2 pr-4 whitespace-nowrap">{workModeLabel(r.workMode)}</td>
+                      <td className="py-2 pr-4 whitespace-nowrap"><InTime at={r.checkIn?.at} /></td>
+                      <td className="py-2 pr-4 whitespace-nowrap">{fmtTime(r.checkOut?.at)}</td>
+                      <td className="py-2 pr-4 whitespace-nowrap">
+                        {duration(r.checkIn?.at, r.checkOut?.at)}
+                      </td>
+                      <td className="py-2 pr-4"><MapPin punch={r.checkIn} label="Check-in" /></td>
+                      <td className="py-2"><MapPin punch={r.checkOut} label="Check-out" /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
     </div>
@@ -439,13 +505,13 @@ function TeamView() {
   return (
     <div className="card">
       <div className="card-body">
-        <div className="flex items-center justify-between mb-3 gap-3 flex-wrap">
-          <h2 className="text-base font-semibold text-gray-800">Team Attendance</h2>
-          <div className="flex items-end gap-2 flex-wrap">
-            <div>
+        <div className="mb-3">
+          <h2 className="text-base font-semibold text-gray-800 mb-3">Team Attendance</h2>
+          <div className="grid grid-cols-2 sm:flex sm:items-end gap-2 sm:flex-wrap">
+            <div className="col-span-2 sm:col-auto">
               <label className="label">Agent</label>
               <select
-                className="input"
+                className="input w-full"
                 value={userId}
                 onChange={(e) => setAgent(e.target.value)}
               >
@@ -459,19 +525,19 @@ function TeamView() {
             </div>
             <div>
               <label className="label">Month</label>
-              <input type="month" className="input" value={month} onChange={(e) => handleMonth(e.target.value)} />
+              <input type="month" className="input w-full" value={month} onChange={(e) => handleMonth(e.target.value)} />
             </div>
             <div>
               <label className="label">From</label>
-              <input type="date" className="input" value={from} onChange={(e) => setFromManual(e.target.value)} />
+              <input type="date" className="input w-full" value={from} onChange={(e) => setFromManual(e.target.value)} />
             </div>
             <div>
               <label className="label">To</label>
-              <input type="date" className="input" value={to} onChange={(e) => setToManual(e.target.value)} />
+              <input type="date" className="input w-full" value={to} onChange={(e) => setToManual(e.target.value)} />
             </div>
             {hasFilter && (
-              <button className="btn-ghost text-xs mb-1" onClick={clearFilters}>
-                Clear
+              <button className="btn-ghost text-xs sm:mb-1 col-span-2 sm:col-auto" onClick={clearFilters}>
+                Clear filters
               </button>
             )}
           </div>
@@ -488,58 +554,56 @@ function TeamView() {
         {items.length === 0 ? (
           <p className="text-sm text-gray-400">No records found for this filter.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
-                  <th className="py-2 pr-4">Member</th>
-                  <th className="py-2 pr-4">Date</th>
-                  <th className="py-2 pr-4">Mode</th>
-                  <th className="py-2 pr-4">In</th>
-                  <th className="py-2 pr-4">Out</th>
-                  <th className="py-2 pr-4">Duration</th>
-                  <th className="py-2 pr-4">Locations</th>
-                  <th className="py-2">Selfie</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((r) => (
-                  <tr key={r._id} className="border-b border-gray-50 table-row-hover">
-                    <td className="py-2 pr-4 whitespace-nowrap">
-                      <div className="font-medium text-gray-700">{r.user?.name || '—'}</div>
-                      <div className="text-xs text-gray-400">{r.user?.role}</div>
-                    </td>
-                    <td className="py-2 pr-4 whitespace-nowrap">{fmtDate(r.date)}</td>
-                    <td className="py-2 pr-4 whitespace-nowrap">{workModeLabel(r.workMode)}</td>
-                    <td className="py-2 pr-4 whitespace-nowrap"><InTime at={r.checkIn?.at} /></td>
-                    <td className="py-2 pr-4 whitespace-nowrap">{fmtTime(r.checkOut?.at)}</td>
-                    <td className="py-2 pr-4 whitespace-nowrap">
-                      {duration(r.checkIn?.at, r.checkOut?.at)}
-                    </td>
-                    <td className="py-2 pr-4 whitespace-nowrap">
-                      <span className="inline-flex gap-3">
-                        <MapPin punch={r.checkIn} label="Check-in" />
-                        <MapPin punch={r.checkOut} label="Check-out" />
-                      </span>
-                    </td>
-                    <td className="py-2">
-                      {r.checkIn?.selfieUrl ? (
-                        <a href={r.checkIn.selfieUrl} target="_blank" rel="noopener noreferrer">
-                          <img
-                            src={r.checkIn.selfieUrl}
-                            alt="Selfie"
-                            className="w-9 h-9 object-cover rounded border border-gray-200"
-                          />
-                        </a>
-                      ) : (
-                        <span className="text-gray-300">—</span>
-                      )}
-                    </td>
+          <>
+            {/* Mobile: stacked cards */}
+            <div className="space-y-2 sm:hidden">
+              {items.map((r) => (
+                <RecordCard key={r._id} r={r} showMember />
+              ))}
+            </div>
+
+            {/* Desktop: table */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
+                    <th className="py-2 pr-4">Member</th>
+                    <th className="py-2 pr-4">Date</th>
+                    <th className="py-2 pr-4">Mode</th>
+                    <th className="py-2 pr-4">In</th>
+                    <th className="py-2 pr-4">Out</th>
+                    <th className="py-2 pr-4">Duration</th>
+                    <th className="py-2 pr-4">Locations</th>
+                    <th className="py-2">Selfie</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {items.map((r) => (
+                    <tr key={r._id} className="border-b border-gray-50 table-row-hover">
+                      <td className="py-2 pr-4 whitespace-nowrap">
+                        <div className="font-medium text-gray-700">{r.user?.name || '—'}</div>
+                        <div className="text-xs text-gray-400">{r.user?.role}</div>
+                      </td>
+                      <td className="py-2 pr-4 whitespace-nowrap">{fmtDate(r.date)}</td>
+                      <td className="py-2 pr-4 whitespace-nowrap">{workModeLabel(r.workMode)}</td>
+                      <td className="py-2 pr-4 whitespace-nowrap"><InTime at={r.checkIn?.at} /></td>
+                      <td className="py-2 pr-4 whitespace-nowrap">{fmtTime(r.checkOut?.at)}</td>
+                      <td className="py-2 pr-4 whitespace-nowrap">
+                        {duration(r.checkIn?.at, r.checkOut?.at)}
+                      </td>
+                      <td className="py-2 pr-4 whitespace-nowrap">
+                        <span className="inline-flex gap-3">
+                          <MapPin punch={r.checkIn} label="Check-in" />
+                          <MapPin punch={r.checkOut} label="Check-out" />
+                        </span>
+                      </td>
+                      <td className="py-2"><SelfieThumb url={r.checkIn?.selfieUrl} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
 
         {totalPages > 1 && (
