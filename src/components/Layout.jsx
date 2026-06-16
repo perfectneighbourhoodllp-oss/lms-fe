@@ -9,6 +9,7 @@ const NAV = [
   { to: '/leads', label: 'Leads', icon: '👥' },
   { to: '/projects', label: 'Projects', icon: '🏗' },
   { to: '/expenses', label: 'Expenses', icon: '💸' },
+  { to: '/attendance', label: 'Attendance', icon: '📍' },
   { to: '/team', label: 'Team', icon: '🧑‍💼', roles: ['admin', 'manager'] },
   { to: '/agents', label: 'Agent Performance', icon: '📊', roles: ['admin', 'manager'] },
   { to: '/meta-webhook', label: 'Meta Ads', icon: '📡', roles: ['admin', 'manager'] },
