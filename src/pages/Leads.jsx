@@ -78,6 +78,10 @@ export default function Leads() {
         page,
         limit: 30,
       }),
+    // Auto-refresh so newly assigned/reassigned leads and their Accept button appear
+    // without a manual reload (keeps the 15-min acceptance window usable).
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
   });
 
   const leads = leadsData?.leads ?? [];
@@ -135,6 +139,30 @@ export default function Leads() {
       toast.success('Remark added');
     },
     onError: () => toast.error('Failed to add remark'),
+  });
+
+  const acceptMutation = useMutation({
+    mutationFn: (id) => leadService.accept(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['leads'] });
+      qc.invalidateQueries({ queryKey: ['lead-focus'] });
+      toast.success('Lead accepted — it’s yours');
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Could not accept lead'),
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: (id) => leadService.reject(id),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['leads'] });
+      qc.invalidateQueries({ queryKey: ['lead-focus'] });
+      toast.success(
+        data?.action === 'escalated'
+          ? 'Lead declined — escalated to admin (no other agent available)'
+          : 'Lead declined — passed to the next agent'
+      );
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Could not reject lead'),
   });
 
   const deleteMutation = useMutation({
@@ -432,6 +460,11 @@ export default function Leads() {
             selectedIds={isAdmin ? selectedIds : undefined}
             onToggleSelect={isAdmin ? toggleSelect : undefined}
             onToggleSelectAll={isAdmin ? toggleSelectAll : undefined}
+            currentUserId={user?._id || user?.id}
+            onAccept={(id) => acceptMutation.mutate(id)}
+            accepting={acceptMutation.isPending}
+            onReject={(id) => rejectMutation.mutate(id)}
+            rejecting={rejectMutation.isPending}
           />
         )}
       </div>
@@ -536,6 +569,11 @@ export default function Leads() {
           onSave={(id, data) => saveMutation.mutate({ id, ...data })}
           onDelete={(id) => setDeleteId(id)}
           onAddRemark={(id, text) => remarkMutation.mutateAsync({ id, text })}
+          onAccept={(id) => acceptMutation.mutateAsync(id)}
+          accepting={acceptMutation.isPending}
+          onReject={(id) => rejectMutation.mutateAsync(id)}
+          rejecting={rejectMutation.isPending}
+          currentUserId={user?._id || user?.id}
           users={users}
           canAssign={canAssign}
           canDelete={canDelete}

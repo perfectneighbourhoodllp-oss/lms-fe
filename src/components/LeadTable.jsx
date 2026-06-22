@@ -37,6 +37,50 @@ const fmtDateTime = (d) => {
 
 const waLink = (phone) => `https://wa.me/${phone.replace(/\D/g, '')}`;
 
+// Small badge showing the lead's acceptance state (pending / escalated).
+export function AcceptanceBadge({ lead, className = '' }) {
+  if (lead.acceptanceStatus === 'pending') {
+    return (
+      <span className={`badge bg-yellow-100 text-yellow-700 ${className}`}>
+        Pending accept{lead.reassignmentCount > 0 ? ` (#${lead.reassignmentCount})` : ''}
+      </span>
+    );
+  }
+  if (lead.acceptanceStatus === 'escalated') {
+    return <span className={`badge bg-red-100 text-red-700 ${className}`}>Unaccepted</span>;
+  }
+  return null;
+}
+
+// Inline Accept/Reject buttons (for the assigned agent) or the status badge (for everyone else).
+export function AcceptControl({ lead, currentUserId, onAccept, onReject, accepting, rejecting, className = '' }) {
+  const isMine = String(lead.assignedTo?._id || lead.assignedTo || '') === String(currentUserId || '');
+  if (lead.acceptanceStatus === 'pending' && isMine && onAccept) {
+    const busy = accepting || rejecting;
+    return (
+      <span className={`inline-flex items-center gap-1 ${className}`}>
+        <button
+          onClick={(e) => { e.stopPropagation(); onAccept(lead._id); }}
+          disabled={busy}
+          className="badge bg-green-600 text-white hover:bg-green-700 disabled:opacity-60"
+        >
+          {accepting ? '…' : 'Accept'}
+        </button>
+        {onReject && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onReject(lead._id); }}
+            disabled={busy}
+            className="badge bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 disabled:opacity-60"
+          >
+            {rejecting ? '…' : 'Reject'}
+          </button>
+        )}
+      </span>
+    );
+  }
+  return <AcceptanceBadge lead={lead} className={className} />;
+}
+
 // "Unattended" = lead created over 20 min ago, no remarks added, not in terminal status.
 // Frontend-only check using already-loaded lead fields.
 const UNATTENDED_THRESHOLD_MS = 20 * 60 * 1000;
@@ -65,7 +109,7 @@ const isToday = (lead) => {
 };
 
 /* ─── Mobile Lead Card ────────────────────────────────────── */
-function LeadCard({ lead, onSelect }) {
+function LeadCard({ lead, onSelect, currentUserId, onAccept, onReject, accepting, rejecting }) {
   const overdue = isOverdue(lead);
   const today = isToday(lead);
   const remarksCount = (lead.remarks || []).length;
@@ -100,6 +144,7 @@ function LeadCard({ lead, onSelect }) {
             {lead.status}
           </span>
           {overdue && <span className="badge bg-red-100 text-red-700">Late</span>}
+          <AcceptControl lead={lead} currentUserId={currentUserId} onAccept={onAccept} onReject={onReject} accepting={accepting} rejecting={rejecting} />
         </div>
       </div>
 
@@ -147,6 +192,11 @@ export default function LeadTable({
   selectedIds, // optional Set<string> — when provided, checkboxes are rendered
   onToggleSelect, // (id) => void
   onToggleSelectAll, // (checked: boolean) => void
+  currentUserId,
+  onAccept,
+  accepting,
+  onReject,
+  rejecting,
 }) {
   if (!leads.length) {
     return <div className="text-center py-10 text-gray-400 text-sm">No leads found.</div>;
@@ -161,7 +211,16 @@ export default function LeadTable({
       {/* ── Mobile: card list ── */}
       <div className="md:hidden divide-y divide-gray-100">
         {leads.map((lead) => (
-          <LeadCard key={lead._id} lead={lead} onSelect={handleSelect} />
+          <LeadCard
+            key={lead._id}
+            lead={lead}
+            onSelect={handleSelect}
+            currentUserId={currentUserId}
+            onAccept={onAccept}
+            accepting={accepting}
+            onReject={onReject}
+            rejecting={rejecting}
+          />
         ))}
       </div>
 
@@ -254,6 +313,7 @@ export default function LeadTable({
                       {lead.status}
                     </span>
                     {overdue && <span className="badge bg-red-100 text-red-700 ml-1">Overdue</span>}
+                    <AcceptControl lead={lead} currentUserId={currentUserId} onAccept={onAccept} onReject={onReject} accepting={accepting} rejecting={rejecting} className="ml-1" />
                   </td>
                   <td className="td text-gray-500">{fmtDate(lead.followUpDate)}</td>
                   {!compact && (

@@ -15,10 +15,12 @@ export const leadService = {
   getOverdue: () => api.get('/leads/overdue').then((r) => r.data),
   getStats: () => api.get('/leads/stats').then((r) => r.data),
   addRemark: (id, text) => api.post(`/leads/${id}/remarks`, { text }).then((r) => r.data),
+  accept: (id) => api.post(`/leads/${id}/accept`).then((r) => r.data),
   getRelated: (id) => api.get(`/leads/${id}/related`).then((r) => r.data),
   exportCsv: (params) =>
     api.get('/leads/export', { params, responseType: 'blob' }).then((r) => r.data),
   bulkDelete: (ids) => api.post('/leads/bulk-delete', { ids }).then((r) => r.data),
+  reject: (id) => api.post(`/leads/${id}/reject`).then((r) => r.data),
 };
 
 export const notificationService = {

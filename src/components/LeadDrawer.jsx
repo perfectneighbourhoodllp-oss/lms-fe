@@ -14,7 +14,7 @@ const fmtDateTime = (d) => {
   );
 };
 
-export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemark, users, canAssign, canDelete }) {
+export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemark, onAccept, accepting, onReject, rejecting, currentUserId, users, canAssign, canDelete }) {
   const [status, setStatus] = useState(lead.status);
   // Format for datetime-local input: YYYY-MM-DDTHH:mm in LOCAL time
   const toDateTimeLocal = (d) => {
@@ -34,6 +34,23 @@ export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemar
   const [submittingRemark, setSubmittingRemark] = useState(false);
 
   const remarks = lead.remarks || [];
+
+  // Live countdown for the 15-min acceptance window.
+  const isMine = String(lead.assignedTo?._id || lead.assignedTo) === String(currentUserId);
+  const isPendingForMe = lead.acceptanceStatus === 'pending' && isMine;
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (!isPendingForMe) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [isPendingForMe, lead._id]);
+
+  const msLeft = lead.acceptDeadline ? new Date(lead.acceptDeadline).getTime() - now : 0;
+  const mmss = (() => {
+    if (msLeft <= 0) return '0:00';
+    const s = Math.floor(msLeft / 1000);
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  })();
 
   // Fetch other leads with same phone but different projects
   const { data: relatedLeads = [] } = useQuery({
@@ -125,6 +142,52 @@ export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemar
             ×
           </button>
         </div>
+
+        {/* Acceptance banner — only for the assigned agent while pending */}
+        {isPendingForMe && (
+          <div className="px-5 py-4 border-b border-yellow-200 bg-yellow-50">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-sm font-semibold text-yellow-800">Accept this lead</p>
+              <span className={`text-xs font-mono ${msLeft <= 60_000 ? 'text-red-600' : 'text-yellow-700'}`}>
+                {msLeft > 0 ? `${mmss} left` : 'expiring…'}
+              </span>
+            </div>
+            <p className="text-xs text-yellow-700 mb-3">
+              Accept within the time shown or it will be reassigned to the next agent.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => onAccept(lead._id)}
+                disabled={accepting || rejecting}
+                className="btn-primary text-sm py-2 px-4 flex-1"
+              >
+                {accepting ? 'Accepting…' : 'Accept Lead'}
+              </button>
+              {onReject && (
+                <button
+                  onClick={() => onReject(lead._id)}
+                  disabled={accepting || rejecting}
+                  className="btn-danger text-sm py-2 px-4"
+                >
+                  {rejecting ? 'Rejecting…' : 'Reject'}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Acceptance status note — for managers/admins or once resolved */}
+        {lead.acceptanceStatus === 'pending' && !isPendingForMe && (
+          <div className="px-5 py-2 border-b border-gray-100 bg-yellow-50 text-xs text-yellow-700">
+            Awaiting acceptance from {lead.assignedTo?.name || 'the assigned agent'}
+            {lead.reassignmentCount > 0 ? ` · reassigned ${lead.reassignmentCount}×` : ''}
+          </div>
+        )}
+        {lead.acceptanceStatus === 'escalated' && (
+          <div className="px-5 py-2 border-b border-gray-100 bg-red-50 text-xs text-red-700">
+            ⚠ Not accepted by any agent — needs manual assignment
+          </div>
+        )}
 
         {/* Quick actions */}
         <div className="px-5 py-4 border-b border-gray-100 flex gap-2">
