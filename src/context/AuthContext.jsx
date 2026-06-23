@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import api from '../utils/api';
+import { initPush, teardownPush } from '../utils/push';
 
 const AuthContext = createContext(null);
 
@@ -18,6 +19,12 @@ export function AuthProvider({ children }) {
       setLoading(false);
     }
   }, []);
+
+  // Register this device for push notifications once a user is logged in
+  // (no-op on web; only runs inside the native mobile app).
+  useEffect(() => {
+    if (user) initPush();
+  }, [user]);
 
   /**
    * Step 1 of admin login. Returns:
@@ -56,6 +63,7 @@ export function AuthProvider({ children }) {
   };
 
   const logout = () => {
+    teardownPush(); // unregister this device's push token (best-effort)
     localStorage.removeItem('token');
     setUser(null);
   };

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "180287886792",
+    "project_id": "pnh-lead-ms",
+    "storage_bucket": "pnh-lead-ms.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:180287886792:android:b199e6f6358b90fa595cfd",
+        "android_client_info": {
+          "package_name": "com.perfectneighbourhood.crm"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDzgy52YWRMIQqzBUPQXcpD1jkng2ytiX4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

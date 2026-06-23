@@ -114,7 +114,7 @@ export default function Layout() {
   );
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50">
+    <div className="flex min-h-dvh overflow-x-hidden md:h-dvh md:overflow-hidden bg-gray-50">
       {/* ── Desktop sidebar ── */}
       <aside className="hidden md:flex w-56 bg-white border-r border-gray-100 flex-col flex-shrink-0">
         <SidebarContent />
@@ -138,14 +138,14 @@ export default function Layout() {
       </aside>
 
       {/* ── Main content area ── */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0 md:overflow-hidden md:min-h-0">
         {/* Desktop top bar (notifications) */}
         <header className="hidden md:flex items-center justify-end gap-2 px-6 py-2 bg-white border-b border-gray-100 flex-shrink-0">
           <NotificationBell />
         </header>
 
         {/* Mobile top bar */}
-        <header className="md:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-gray-100 flex-shrink-0">
+        <header className="md:hidden sticky top-0 z-30 flex items-center justify-between px-4 py-3 bg-white border-b border-gray-100 flex-shrink-0">
           <button
             onClick={() => setSidebarOpen(true)}
             className="p-2 rounded-lg text-gray-600 hover:bg-gray-100"
@@ -165,8 +165,8 @@ export default function Layout() {
           </div>
         </header>
 
-        {/* Page content */}
-        <main className="flex-1 overflow-auto">
+        {/* Page content — natural document scroll on mobile, inner scroll on desktop */}
+        <main className="flex-1 md:overflow-y-auto md:min-h-0" style={{ WebkitOverflowScrolling: 'touch' }}>
           <Outlet />
         </main>
       </div>
