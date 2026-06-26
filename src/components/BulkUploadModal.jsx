@@ -6,14 +6,15 @@ Sunita Patel,+919876500002,Ads,Budget around 60L
 Vikram Nair,+919876500003,Referral,Looking in Whitefield
 `;
 
-export default function BulkUploadModal({ onClose, onUpload, isLoading }) {
+export default function BulkUploadModal({ onClose, onUpload, isLoading, agents = [] }) {
   const inputRef = useRef(null);
   const [file, setFile] = useState(null);
+  const [assignTo, setAssignTo] = useState('');
   const [result, setResult] = useState(null);
 
   const handleUpload = async () => {
     if (!file) return;
-    const res = await onUpload(file);
+    const res = await onUpload(file, assignTo || undefined);
     if (res) setResult(res);
   };
 
@@ -65,6 +66,27 @@ export default function BulkUploadModal({ onClose, onUpload, isLoading }) {
               className="hidden"
               onChange={(e) => { setFile(e.target.files[0]); setResult(null); }}
             />
+          </div>
+
+          {/* Assign all to a specific agent (optional) */}
+          <div>
+            <label className="label">Assign all leads to</label>
+            <select
+              className="input w-full"
+              value={assignTo}
+              onChange={(e) => setAssignTo(e.target.value)}
+            >
+              <option value="">Auto (round-robin by project)</option>
+              {agents.map((a) => (
+                <option key={a._id} value={a._id}>
+                  {a.name} ({a.role})
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-400 mt-1">
+              Pick an agent to assign every uploaded lead to them. They'll get one summary
+              notification, not one per lead.
+            </p>
           </div>
 
           {/* Results */}

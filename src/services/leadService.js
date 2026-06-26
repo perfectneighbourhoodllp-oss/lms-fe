@@ -6,10 +6,15 @@ export const leadService = {
   create: (data) => api.post('/leads', data).then((r) => r.data),
   update: (id, data) => api.put(`/leads/${id}`, data).then((r) => r.data),
   remove: (id) => api.delete(`/leads/${id}`).then((r) => r.data),
-  bulkUpload: (file) => {
+  bulkUpload: (file, assignTo) => {
     const form = new FormData();
     form.append('file', file);
-    return api.post('/leads/bulk', form, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r) => r.data);
+    return api
+      .post('/leads/bulk', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        params: assignTo ? { assignTo } : undefined,
+      })
+      .then((r) => r.data);
   },
   getTodayFollowups: () => api.get('/leads/today-followups').then((r) => r.data),
   getOverdue: () => api.get('/leads/overdue').then((r) => r.data),
