@@ -1,6 +1,8 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import { reportService } from '../services/leadService';
+import { useAuth } from '../context/AuthContext';
 
 // Local YYYY-MM-DD (avoids UTC shift from toISOString).
 const ymd = (d) => {
@@ -39,7 +41,89 @@ const PERIODS = [
   { key: 'custom', label: 'Custom range' },
 ];
 
+// Admin-only: configure the recipients of the daily 10 PM report email.
+function DailyEmailSettings() {
+  const [recipients, setRecipients] = useState('');
+  const [enabled, setEnabled] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+
+  useEffect(() => {
+    reportService
+      .getSettings()
+      .then((s) => {
+        setRecipients((s.recipients || []).join(', '));
+        setEnabled(!!s.dailyEmailEnabled);
+      })
+      .catch(() => {});
+  }, []);
+
+  const parseList = (str) =>
+    str.split(/[,\s;]+/).map((e) => e.trim()).filter(Boolean);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      const s = await reportService.updateSettings({
+        recipients: parseList(recipients),
+        dailyEmailEnabled: enabled,
+      });
+      setRecipients((s.recipients || []).join(', '));
+      toast.success('Report email settings saved');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not save');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const sendTest = async () => {
+    setTesting(true);
+    try {
+      const r = await reportService.sendTest();
+      toast.success(`Test report sent to ${r.sentTo.length} recipient(s)`);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not send test');
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  return (
+    <div className="card">
+      <div className="card-body space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-semibold text-gray-800">📧 Daily Email Report</h2>
+          <label className="flex items-center gap-2 text-sm text-gray-600">
+            <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
+            Send daily at 10 PM IST
+          </label>
+        </div>
+        <div>
+          <label className="label">Recipient emails (comma-separated)</label>
+          <textarea
+            className="input w-full"
+            rows={2}
+            placeholder="owner@pnh.com, manager@pnh.com"
+            value={recipients}
+            onChange={(e) => setRecipients(e.target.value)}
+          />
+        </div>
+        <div className="flex gap-2">
+          <button className="btn-primary text-sm" onClick={save} disabled={saving}>
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+          <button className="btn-secondary text-sm" onClick={sendTest} disabled={testing}>
+            {testing ? 'Sending…' : 'Send test now'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Reports() {
+  const { user } = useAuth();
   const [period, setPeriod] = useState('today');
   const [custom, setCustom] = useState({ from: ymd(new Date()), to: ymd(new Date()) });
 
@@ -65,6 +149,8 @@ export default function Reports() {
           Agent-wise activity {isFetching && <span className="text-blue-500">· refreshing…</span>}
         </p>
       </div>
+
+      {user?.role === 'admin' && <DailyEmailSettings />}
 
       {/* Period selector */}
       <div className="card">

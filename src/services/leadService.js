@@ -99,6 +99,9 @@ export const expenseService = {
 
 export const reportService = {
   getAgents: (params) => api.get('/reports/agents', { params }).then((r) => r.data),
+  getSettings: () => api.get('/reports/settings').then((r) => r.data),
+  updateSettings: (data) => api.put('/reports/settings', data).then((r) => r.data),
+  sendTest: () => api.post('/reports/send-test').then((r) => r.data),
 };
 
 export const attendanceService = {
