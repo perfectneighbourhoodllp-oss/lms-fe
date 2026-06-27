@@ -6,13 +6,16 @@ export const leadService = {
   create: (data) => api.post('/leads', data).then((r) => r.data),
   update: (id, data) => api.put(`/leads/${id}`, data).then((r) => r.data),
   remove: (id) => api.delete(`/leads/${id}`).then((r) => r.data),
-  bulkUpload: (file, assignTo) => {
+  bulkUpload: (file, { assignTo, project } = {}) => {
     const form = new FormData();
     form.append('file', file);
+    const params = {};
+    if (assignTo) params.assignTo = assignTo;
+    if (project) params.project = project;
     return api
       .post('/leads/bulk', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
-        params: assignTo ? { assignTo } : undefined,
+        params: Object.keys(params).length ? params : undefined,
       })
       .then((r) => r.data);
   },
@@ -21,6 +24,8 @@ export const leadService = {
   getStats: () => api.get('/leads/stats').then((r) => r.data),
   addRemark: (id, text) => api.post(`/leads/${id}/remarks`, { text }).then((r) => r.data),
   accept: (id) => api.post(`/leads/${id}/accept`).then((r) => r.data),
+  logContact: (id, channel) =>
+    api.post(`/leads/${id}/log-contact`, { channel }).then((r) => r.data),
   getRelated: (id) => api.get(`/leads/${id}/related`).then((r) => r.data),
   exportCsv: (params) =>
     api.get('/leads/export', { params, responseType: 'blob' }).then((r) => r.data),
@@ -90,6 +95,10 @@ export const expenseService = {
       })
       .then((r) => r.data);
   },
+};
+
+export const reportService = {
+  getAgents: (params) => api.get('/reports/agents', { params }).then((r) => r.data),
 };
 
 export const attendanceService = {

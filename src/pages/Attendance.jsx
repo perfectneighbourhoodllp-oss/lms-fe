@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
@@ -62,9 +63,29 @@ const WORK_MODES = [
 
 const workModeLabel = (m) => WORK_MODES.find((w) => w.value === m)?.label || m || '—';
 
-// Promisified geolocation with friendly errors.
-const getLocation = () =>
-  new Promise((resolve, reject) => {
+// Get current position. Inside the native app the browser geolocation API is
+// unreliable, so use the Capacitor Geolocation plugin (which requests the OS
+// permission); on the web, fall back to navigator.geolocation.
+const getLocation = async () => {
+  if (Capacitor.isNativePlatform()) {
+    const { Geolocation } = await import('@capacitor/geolocation');
+    try {
+      let perm = await Geolocation.checkPermissions();
+      if (perm.location !== 'granted') {
+        perm = await Geolocation.requestPermissions();
+      }
+      if (perm.location !== 'granted') {
+        throw new Error('Location permission denied — please allow location access in Settings');
+      }
+      const pos = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 15000 });
+      return { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy };
+    } catch (err) {
+      throw new Error(err.message || 'Could not fetch your location. Try again.');
+    }
+  }
+
+  // Web fallback
+  return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
       reject(new Error('Geolocation is not supported by this browser'));
       return;
@@ -86,6 +107,7 @@ const getLocation = () =>
       { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 }
     );
   });
+};
 
 function MapPin({ punch, label }) {
   const link = mapsLink(punch);

@@ -6,15 +6,16 @@ Sunita Patel,+919876500002,Ads,Budget around 60L
 Vikram Nair,+919876500003,Referral,Looking in Whitefield
 `;
 
-export default function BulkUploadModal({ onClose, onUpload, isLoading, agents = [] }) {
+export default function BulkUploadModal({ onClose, onUpload, isLoading, agents = [], projects = [] }) {
   const inputRef = useRef(null);
   const [file, setFile] = useState(null);
   const [assignTo, setAssignTo] = useState('');
+  const [project, setProject] = useState('');
   const [result, setResult] = useState(null);
 
   const handleUpload = async () => {
     if (!file) return;
-    const res = await onUpload(file, assignTo || undefined);
+    const res = await onUpload(file, { assignTo: assignTo || undefined, project: project || undefined });
     if (res) setResult(res);
   };
 
@@ -66,6 +67,25 @@ export default function BulkUploadModal({ onClose, onUpload, isLoading, agents =
               className="hidden"
               onChange={(e) => { setFile(e.target.files[0]); setResult(null); }}
             />
+          </div>
+
+          {/* Project for the uploaded leads (optional) */}
+          <div>
+            <label className="label">Project</label>
+            <select
+              className="input w-full"
+              value={project}
+              onChange={(e) => setProject(e.target.value)}
+            >
+              <option value="">No project</option>
+              {projects.map((p) => (
+                <option key={p._id} value={p._id}>{p.name}</option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-400 mt-1">
+              Links every uploaded lead to this project (a <code>project_id</code> column in the
+              CSV overrides this per row).
+            </p>
           </div>
 
           {/* Assign all to a specific agent (optional) */}

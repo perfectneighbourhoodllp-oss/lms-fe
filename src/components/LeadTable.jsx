@@ -1,3 +1,8 @@
+import { leadService } from '../services/leadService';
+
+// Fire-and-forget: record a contact attempt (call/whatsapp) on the lead.
+const logContact = (id, channel) => leadService.logContact(id, channel).catch(() => {});
+
 export const STATUSES = ['New', 'Called', 'RNR', 'Interested', 'Webinar', 'Site Visit', 'Closed', 'Not Interested', 'Dead'];
 export const SOURCES = ['Instagram', 'Ads', 'Referral', 'Walk-in', 'Website', 'Database', 'Other'];
 
@@ -162,13 +167,14 @@ function LeadCard({ lead, onSelect, currentUserId, onAccept, onReject, accepting
 
       {/* Quick contact actions — stop propagation so row click doesn't fire */}
       <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-        <a href={`tel:${lead.phone}`} className="btn-call text-xs py-1.5 px-3 flex-1 text-center">
+        <a href={`tel:${lead.phone}`} onClick={() => logContact(lead._id, 'call')} className="btn-call text-xs py-1.5 px-3 flex-1 text-center">
           Call
         </a>
         <a
           href={waLink(lead.phone)}
           target="_blank"
           rel="noopener noreferrer"
+          onClick={() => logContact(lead._id, 'whatsapp')}
           className="btn-whatsapp text-xs py-1.5 px-3 flex-1 text-center"
         >
           WhatsApp

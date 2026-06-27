@@ -205,7 +205,7 @@ export default function Leads() {
   }, [search, statusFilter, sourceFilter, projectFilter, agentFilter, createdFrom, createdTo, followUpFrom, followUpTo, hasFollowUpFilter, overdueFilter, page]);
 
   const bulkMutation = useMutation({
-    mutationFn: ({ file, assignTo }) => leadService.bulkUpload(file, assignTo),
+    mutationFn: ({ file, assignTo, project }) => leadService.bulkUpload(file, { assignTo, project }),
     onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: ['leads'] });
       qc.invalidateQueries({ queryKey: ['stats'] });
@@ -218,8 +218,8 @@ export default function Leads() {
     },
   });
 
-  const handleBulkUpload = async (file, assignTo) => {
-    const result = await bulkMutation.mutateAsync({ file, assignTo }).catch(() => null);
+  const handleBulkUpload = async (file, { assignTo, project } = {}) => {
+    const result = await bulkMutation.mutateAsync({ file, assignTo, project }).catch(() => null);
     return result;
   };
 
@@ -533,6 +533,7 @@ export default function Leads() {
           onUpload={handleBulkUpload}
           isLoading={bulkMutation.isPending}
           agents={users}
+          projects={projects}
         />
       )}
 

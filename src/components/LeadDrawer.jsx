@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { STATUSES, STATUS_STYLE } from './LeadTable';
 import { leadService } from '../services/leadService';
 
@@ -34,6 +34,16 @@ export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemar
   const [submittingRemark, setSubmittingRemark] = useState(false);
 
   const remarks = lead.remarks || [];
+  const contactLog = lead.contactLog || [];
+
+  const qc = useQueryClient();
+  // Log a Call/WhatsApp tap, then refresh so the contact history updates.
+  const logContact = (channel) => {
+    leadService
+      .logContact(lead._id, channel)
+      .then(() => qc.invalidateQueries({ queryKey: ['lead-focus'] }))
+      .catch(() => {});
+  };
 
   // Live countdown for the 15-min acceptance window.
   const isMine = String(lead.assignedTo?._id || lead.assignedTo) === String(currentUserId);
@@ -193,6 +203,7 @@ export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemar
         <div className="px-5 py-4 border-b border-gray-100 flex gap-2">
           <a
             href={`tel:${lead.phone}`}
+            onClick={() => logContact('call')}
             className="btn-call text-sm py-2 px-4 flex-1 text-center"
           >
             Call
@@ -201,11 +212,33 @@ export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemar
             href={waLink(lead.phone)}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => logContact('whatsapp')}
             className="btn-whatsapp text-sm py-2 px-4 flex-1 text-center"
           >
             WhatsApp
           </a>
         </div>
+
+        {/* Contact history — every Call / WhatsApp tap on this lead */}
+        {contactLog.length > 0 && (
+          <div className="px-5 py-3 border-b border-gray-100">
+            <p className="text-xs font-semibold text-gray-600 mb-2">
+              Contact history ({contactLog.length})
+            </p>
+            <div className="space-y-1.5 max-h-40 overflow-y-auto">
+              {[...contactLog].reverse().map((c, i) => (
+                <div key={i} className="flex items-center justify-between text-xs">
+                  <span className="flex items-center gap-1.5">
+                    <span>{c.type === 'whatsapp' ? '🟢' : '📞'}</span>
+                    <span className="font-medium text-gray-700 capitalize">{c.type}</span>
+                    {c.by?.name && <span className="text-gray-400">by {c.by.name}</span>}
+                  </span>
+                  <span className="text-gray-400">{fmtDateTime(c.at)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Related leads (same phone, other projects) */}
         {relatedLeads.length > 0 && (

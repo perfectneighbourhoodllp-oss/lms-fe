@@ -1,0 +1,175 @@
+import { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { reportService } from '../services/leadService';
+
+// Local YYYY-MM-DD (avoids UTC shift from toISOString).
+const ymd = (d) => {
+  const t = new Date(d);
+  return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
+};
+
+// Compute [from, to] for a named period relative to today.
+function rangeFor(period) {
+  const now = new Date();
+  if (period === 'today') return { from: ymd(now), to: ymd(now) };
+  if (period === 'week') {
+    const day = now.getDay(); // 0 = Sun
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - ((day + 6) % 7)); // back to Monday
+    return { from: ymd(monday), to: ymd(now) };
+  }
+  // month
+  const first = new Date(now.getFullYear(), now.getMonth(), 1);
+  return { from: ymd(first), to: ymd(now) };
+}
+
+// Format business-minutes into a short human duration.
+const fmtMins = (m) => {
+  if (m == null) return '—';
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  const r = m % 60;
+  return r ? `${h}h ${r}m` : `${h}h`;
+};
+
+const PERIODS = [
+  { key: 'today', label: 'Daily (today)' },
+  { key: 'week', label: 'Weekly (this week)' },
+  { key: 'month', label: 'Monthly (this month)' },
+  { key: 'custom', label: 'Custom range' },
+];
+
+export default function Reports() {
+  const [period, setPeriod] = useState('today');
+  const [custom, setCustom] = useState({ from: ymd(new Date()), to: ymd(new Date()) });
+
+  const { from, to } = useMemo(
+    () => (period === 'custom' ? custom : rangeFor(period)),
+    [period, custom]
+  );
+
+  const { data, isFetching } = useQuery({
+    queryKey: ['report', 'agents', from, to],
+    queryFn: () => reportService.getAgents({ from, to }),
+    keepPreviousData: true,
+  });
+
+  const agents = data?.agents || [];
+  const totals = data?.totals || { leadsAssigned: 0, leadsCalled: 0, leadsWhatsapped: 0, followUpsDone: 0, closed: 0 };
+
+  return (
+    <div className="p-4 sm:p-6 max-w-6xl mx-auto space-y-5">
+      <div>
+        <h1 className="text-xl font-bold text-gray-900">Reports</h1>
+        <p className="text-xs text-gray-500 mt-0.5">
+          Agent-wise activity {isFetching && <span className="text-blue-500">· refreshing…</span>}
+        </p>
+      </div>
+
+      {/* Period selector */}
+      <div className="card">
+        <div className="card-body flex flex-wrap items-end gap-3">
+          <div>
+            <label className="label">Period</label>
+            <select className="input" value={period} onChange={(e) => setPeriod(e.target.value)}>
+              {PERIODS.map((p) => (
+                <option key={p.key} value={p.key}>{p.label}</option>
+              ))}
+            </select>
+          </div>
+          {period === 'custom' && (
+            <>
+              <div>
+                <label className="label">From</label>
+                <input type="date" className="input" value={custom.from}
+                  onChange={(e) => setCustom((c) => ({ ...c, from: e.target.value }))} />
+              </div>
+              <div>
+                <label className="label">To</label>
+                <input type="date" className="input" value={custom.to}
+                  onChange={(e) => setCustom((c) => ({ ...c, to: e.target.value }))} />
+              </div>
+            </>
+          )}
+          <div className="text-xs text-gray-400 ml-auto">
+            {from} → {to}
+          </div>
+        </div>
+      </div>
+
+      {/* Totals strip */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        {[
+          { label: 'Leads Assigned', value: totals.leadsAssigned, icon: '👥' },
+          { label: 'Leads Called', value: totals.leadsCalled, icon: '📞' },
+          { label: 'Leads WhatsApp’d', value: totals.leadsWhatsapped, icon: '🟢' },
+          { label: 'Follow-ups Done', value: totals.followUpsDone, icon: '📝' },
+          { label: 'Avg 1st Contact', value: fmtMins(totals.avgFirstContactMins), icon: '⏱' },
+          { label: 'Closed', value: totals.closed, icon: '✅' },
+        ].map((s) => (
+          <div key={s.label} className="card">
+            <div className="card-body py-4">
+              <div className="text-xs text-gray-400">{s.icon} {s.label}</div>
+              <div className="text-2xl font-bold text-gray-800 mt-1">{s.value}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Per-agent table */}
+      <div className="card">
+        <div className="card-body">
+          <h2 className="text-base font-semibold text-gray-800 mb-3">By Agent</h2>
+          {agents.length === 0 ? (
+            <p className="text-sm text-gray-400">No agents found.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
+                    <th className="py-2 pr-4">Agent</th>
+                    <th className="py-2 pr-4 text-right">Leads Assigned</th>
+                    <th className="py-2 pr-4 text-right">Leads Called</th>
+                    <th className="py-2 pr-4 text-right">Leads WhatsApp’d</th>
+                    <th className="py-2 pr-4 text-right">Follow-ups Done</th>
+                    <th className="py-2 pr-4 text-right">Avg 1st Contact</th>
+                    <th className="py-2 text-right">Closed</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {agents.map((a) => (
+                    <tr key={a.agentId} className="border-b border-gray-50 table-row-hover">
+                      <td className="py-2 pr-4">
+                        <div className="font-medium text-gray-700">{a.name}</div>
+                        <div className="text-xs text-gray-400">{a.role}</div>
+                      </td>
+                      <td className="py-2 pr-4 text-right">{a.leadsAssigned}</td>
+                      <td className="py-2 pr-4 text-right">{a.leadsCalled}</td>
+                      <td className="py-2 pr-4 text-right">{a.leadsWhatsapped}</td>
+                      <td className="py-2 pr-4 text-right">{a.followUpsDone}</td>
+                      <td className="py-2 pr-4 text-right" title={a.firstContactSample ? `${a.firstContactSample} lead(s) measured` : 'no contacted leads'}>
+                        {fmtMins(a.avgFirstContactMins)}
+                      </td>
+                      <td className="py-2 text-right">{a.closed}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t border-gray-200 font-semibold text-gray-800">
+                    <td className="py-2 pr-4">Total</td>
+                    <td className="py-2 pr-4 text-right">{totals.leadsAssigned}</td>
+                    <td className="py-2 pr-4 text-right">{totals.leadsCalled}</td>
+                    <td className="py-2 pr-4 text-right">{totals.leadsWhatsapped}</td>
+                    <td className="py-2 pr-4 text-right">{totals.followUpsDone}</td>
+                    <td className="py-2 pr-4 text-right">{fmtMins(totals.avgFirstContactMins)}</td>
+                    <td className="py-2 text-right">{totals.closed}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
