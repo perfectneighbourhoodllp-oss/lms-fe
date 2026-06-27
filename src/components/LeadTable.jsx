@@ -149,6 +149,7 @@ function LeadCard({ lead, onSelect, currentUserId, onAccept, onReject, accepting
             {lead.status}
           </span>
           {overdue && <span className="badge bg-red-100 text-red-700">Late</span>}
+          {lead.leadType === 'database' && <span className="badge bg-gray-100 text-gray-500" title="Bulk-uploaded database lead">DB</span>}
           <AcceptControl lead={lead} currentUserId={currentUserId} onAccept={onAccept} onReject={onReject} accepting={accepting} rejecting={rejecting} />
         </div>
       </div>
@@ -319,6 +320,7 @@ export default function LeadTable({
                       {lead.status}
                     </span>
                     {overdue && <span className="badge bg-red-100 text-red-700 ml-1">Overdue</span>}
+                    {lead.leadType === 'database' && <span className="badge bg-gray-100 text-gray-500 ml-1" title="Bulk-uploaded database lead">DB</span>}
                     <AcceptControl lead={lead} currentUserId={currentUserId} onAccept={onAccept} onReject={onReject} accepting={accepting} rejecting={rejecting} className="ml-1" />
                   </td>
                   <td className="td text-gray-500">{fmtDate(lead.followUpDate)}</td>

@@ -46,6 +46,11 @@ export default function BulkUploadModal({ onClose, onUpload, isLoading, agents =
             <code className="block">source, notes, email</code>
           </div>
 
+          <div className="bg-amber-50 rounded-lg p-3 text-xs text-amber-800">
+            Bulk-uploaded leads are tagged as <b>Database</b> (cold) leads — they're assigned but
+            skip the 15-min Accept timer and aren't counted in speed-to-contact.
+          </div>
+
           {/* File input */}
           <div
             onClick={() => inputRef.current?.click()}
