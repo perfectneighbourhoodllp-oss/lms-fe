@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { reportService } from '../services/leadService';
 import { useAuth } from '../context/AuthContext';
@@ -124,6 +124,8 @@ function DailyEmailSettings() {
 
 export default function Reports() {
   const { user } = useAuth();
+  const qc = useQueryClient();
+  const isAdmin = user?.role === 'admin';
   const [period, setPeriod] = useState('today');
   const [custom, setCustom] = useState({ from: ymd(new Date()), to: ymd(new Date()) });
 
@@ -132,11 +134,28 @@ export default function Reports() {
     [period, custom]
   );
 
+  const queryKey = ['report', 'agents', from, to];
   const { data, isFetching } = useQuery({
-    queryKey: ['report', 'agents', from, to],
+    queryKey,
     queryFn: () => reportService.getAgents({ from, to }),
     keepPreviousData: true,
   });
+
+  // Toggle whether an agent's row is included in the emailed report. Optimistic:
+  // flip the flag locally across all cached ranges, then persist.
+  const toggleEmail = async (agentId, included) => {
+    qc.setQueriesData({ queryKey: ['report', 'agents'] }, (old) =>
+      old
+        ? { ...old, agents: old.agents.map((a) => (a.agentId === agentId ? { ...a, emailExcluded: !included } : a)) }
+        : old
+    );
+    try {
+      await reportService.setAgentEmail(agentId, included);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not update');
+      qc.invalidateQueries({ queryKey: ['report', 'agents'] });
+    }
+  };
 
   const agents = data?.agents || [];
   const totals = data?.totals || { leadsAssigned: 0, leadsCalled: 0, leadsWhatsapped: 0, followUpsDone: 0, closed: 0 };
@@ -205,7 +224,12 @@ export default function Reports() {
       {/* Per-agent table */}
       <div className="card">
         <div className="card-body">
-          <h2 className="text-base font-semibold text-gray-800 mb-3">By Agent</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-base font-semibold text-gray-800">By Agent</h2>
+            {isAdmin && (
+              <span className="text-xs text-gray-400">Toggle “In Email” to keep an agent out of the mailed report</span>
+            )}
+          </div>
           {agents.length === 0 ? (
             <p className="text-sm text-gray-400">No agents found.</p>
           ) : (
@@ -220,6 +244,7 @@ export default function Reports() {
                     <th className="py-2 pr-4 text-right">Follow-ups Done</th>
                     <th className="py-2 pr-4 text-right">Avg 1st Contact</th>
                     <th className="py-2 text-right">Closed</th>
+                    {isAdmin && <th className="py-2 pl-4 text-center">In Email</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -237,6 +262,17 @@ export default function Reports() {
                         {fmtMins(a.avgFirstContactMins)}
                       </td>
                       <td className="py-2 text-right">{a.closed}</td>
+                      {isAdmin && (
+                        <td className="py-2 pl-4 text-center">
+                          <input
+                            type="checkbox"
+                            className="cursor-pointer"
+                            checked={!a.emailExcluded}
+                            onChange={(e) => toggleEmail(a.agentId, e.target.checked)}
+                            title={a.emailExcluded ? 'Excluded from the mailed report' : 'Included in the mailed report'}
+                          />
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>
@@ -249,6 +285,7 @@ export default function Reports() {
                     <td className="py-2 pr-4 text-right">{totals.followUpsDone}</td>
                     <td className="py-2 pr-4 text-right">{fmtMins(totals.avgFirstContactMins)}</td>
                     <td className="py-2 text-right">{totals.closed}</td>
+                    {isAdmin && <td className="py-2 pl-4" />}
                   </tr>
                 </tfoot>
               </table>

@@ -102,6 +102,9 @@ export const reportService = {
   getSettings: () => api.get('/reports/settings').then((r) => r.data),
   updateSettings: (data) => api.put('/reports/settings', data).then((r) => r.data),
   sendTest: () => api.post('/reports/send-test').then((r) => r.data),
+  // Include/exclude an agent's row from the emailed report (does not affect the page).
+  setAgentEmail: (agentId, included) =>
+    api.patch(`/reports/agent-email/${agentId}`, { included }).then((r) => r.data),
 };
 
 export const attendanceService = {
