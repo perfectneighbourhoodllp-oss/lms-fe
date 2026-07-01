@@ -252,6 +252,7 @@ export default function LeadTable({
               {!compact && <th className="th">Source</th>}
               <th className="th">Status</th>
               <th className="th">Follow-up</th>
+              {!compact && <th className="th">Latest Remark</th>}
               {!compact && <th className="th">Assigned</th>}
               {!compact && <th className="th">Created</th>}
               <th className="th w-10"></th>
@@ -261,7 +262,12 @@ export default function LeadTable({
             {leads.map((lead) => {
               const overdue = isOverdue(lead);
               const today = isToday(lead);
-              const remarksCount = (lead.remarks || []).length;
+              const remarks = lead.remarks || [];
+              const remarksCount = remarks.length;
+              // Latest by createdAt (don't assume array order).
+              const latestRemark = remarksCount
+                ? remarks.reduce((a, b) => (new Date(b.createdAt) >= new Date(a.createdAt) ? b : a))
+                : null;
               return (
                 <tr
                   key={lead._id}
@@ -324,6 +330,23 @@ export default function LeadTable({
                     <AcceptControl lead={lead} currentUserId={currentUserId} onAccept={onAccept} onReject={onReject} accepting={accepting} rejecting={rejecting} className="ml-1" />
                   </td>
                   <td className="td text-gray-500">{fmtDate(lead.followUpDate)}</td>
+                  {!compact && (
+                    <td className="td">
+                      {latestRemark ? (
+                        <div className="max-w-[240px]">
+                          <div className="text-xs text-gray-600 truncate" title={latestRemark.text}>
+                            {latestRemark.text}
+                          </div>
+                          <div className="text-[10px] text-gray-400">
+                            {latestRemark.addedBy?.name ? `${latestRemark.addedBy.name} · ` : ''}
+                            {fmtDateTime(latestRemark.createdAt)}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-gray-300">—</span>
+                      )}
+                    </td>
+                  )}
                   {!compact && (
                     <td className="td text-sm">
                       {lead.assignedTo?.name ? (
