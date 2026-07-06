@@ -6,16 +6,17 @@ Sunita Patel,+919876500002,Ads,Budget around 60L
 Vikram Nair,+919876500003,Referral,Looking in Whitefield
 `;
 
-export default function BulkUploadModal({ onClose, onUpload, isLoading, agents = [], projects = [] }) {
+export default function BulkUploadModal({ onClose, onUpload, isLoading, agents = [], projects = [], defaultLeadType = 'database' }) {
   const inputRef = useRef(null);
   const [file, setFile] = useState(null);
   const [assignTo, setAssignTo] = useState('');
   const [project, setProject] = useState('');
+  const [leadType, setLeadType] = useState(defaultLeadType);
   const [result, setResult] = useState(null);
 
   const handleUpload = async () => {
     if (!file) return;
-    const res = await onUpload(file, { assignTo: assignTo || undefined, project: project || undefined });
+    const res = await onUpload(file, { assignTo: assignTo || undefined, project: project || undefined, leadType });
     if (res) setResult(res);
   };
 
@@ -46,9 +47,38 @@ export default function BulkUploadModal({ onClose, onUpload, isLoading, agents =
             <code className="block">source, notes, email</code>
           </div>
 
-          <div className="bg-amber-50 rounded-lg p-3 text-xs text-amber-800">
-            Bulk-uploaded leads are tagged as <b>Database</b> (cold) leads — they're assigned but
-            skip the 15-min Accept timer and aren't counted in speed-to-contact.
+          {/* Live vs Database bucket */}
+          <div>
+            <label className="label">These contacts are</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setLeadType('database')}
+                className={`rounded-lg border p-2.5 text-left text-xs transition-colors ${
+                  leadType === 'database'
+                    ? 'border-amber-400 bg-amber-50 text-amber-800 ring-1 ring-amber-300'
+                    : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <span className="font-semibold block">🗄 Database</span>
+                Cold bulk data. Kept out of the live lead count.
+              </button>
+              <button
+                type="button"
+                onClick={() => setLeadType('live')}
+                className={`rounded-lg border p-2.5 text-left text-xs transition-colors ${
+                  leadType === 'live'
+                    ? 'border-blue-400 bg-blue-50 text-blue-800 ring-1 ring-blue-300'
+                    : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <span className="font-semibold block">👥 Live leads</span>
+                Real pipeline. Counted as leads on the dashboard.
+              </button>
+            </div>
+            <p className="text-xs text-gray-400 mt-1.5">
+              Either way, bulk uploads are assigned but skip the 15-min Accept timer.
+            </p>
           </div>
 
           {/* File input */}

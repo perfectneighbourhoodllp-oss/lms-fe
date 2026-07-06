@@ -7,6 +7,7 @@ import AvailabilityToggle from './AvailabilityToggle';
 const NAV = [
   { to: '/', label: 'Dashboard', icon: '⬛' },
   { to: '/leads', label: 'Leads', icon: '👥' },
+  { to: '/database', label: 'Database', icon: '🗄' },
   { to: '/projects', label: 'Projects', icon: '🏗' },
   { to: '/expenses', label: 'Expenses', icon: '💸' },
   { to: '/attendance', label: 'Attendance', icon: '📍' },

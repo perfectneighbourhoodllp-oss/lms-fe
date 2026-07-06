@@ -101,12 +101,19 @@ export default function Dashboard() {
       </div>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 mb-5 sm:mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-2.5 sm:gap-3 mb-5 sm:mb-6">
         <StatCard
-          label={isSales ? 'Assigned to Me' : 'Total Leads'}
+          label={isSales ? 'Live Leads (Mine)' : 'Live Leads'}
           value={stats?.total}
           icon="👥"
           onClick={() => navigate('/leads')}
+        />
+        <StatCard
+          label="Database"
+          value={stats?.database}
+          color="text-amber-600"
+          icon="🗄"
+          onClick={() => navigate('/database')}
         />
         <StatCard
           label="Follow-ups Today"

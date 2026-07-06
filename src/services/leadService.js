@@ -6,12 +6,13 @@ export const leadService = {
   create: (data) => api.post('/leads', data).then((r) => r.data),
   update: (id, data) => api.put(`/leads/${id}`, data).then((r) => r.data),
   remove: (id) => api.delete(`/leads/${id}`).then((r) => r.data),
-  bulkUpload: (file, { assignTo, project } = {}) => {
+  bulkUpload: (file, { assignTo, project, leadType } = {}) => {
     const form = new FormData();
     form.append('file', file);
     const params = {};
     if (assignTo) params.assignTo = assignTo;
     if (project) params.project = project;
+    if (leadType) params.leadType = leadType;
     return api
       .post('/leads/bulk', form, {
         headers: { 'Content-Type': 'multipart/form-data' },

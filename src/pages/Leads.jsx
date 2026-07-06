@@ -10,7 +10,8 @@ import AddLeadModal from '../components/AddLeadModal';
 import BulkUploadModal from '../components/BulkUploadModal';
 import ConfirmModal from '../components/ConfirmModal';
 
-export default function Leads() {
+export default function Leads({ leadType = 'live' }) {
+  const isDatabase = leadType === 'database';
   const { user } = useAuth();
   const qc = useQueryClient();
   const canAssign = user?.role === 'admin' || user?.role === 'manager';
@@ -61,9 +62,10 @@ export default function Leads() {
   }, [searchParams]);
 
   const { data: leadsData, isLoading } = useQuery({
-    queryKey: ['leads', search, statusFilter, sourceFilter, projectFilter, agentFilter, createdFrom, createdTo, followUpFrom, followUpTo, hasFollowUpFilter, overdueFilter, page],
+    queryKey: ['leads', leadType, search, statusFilter, sourceFilter, projectFilter, agentFilter, createdFrom, createdTo, followUpFrom, followUpTo, hasFollowUpFilter, overdueFilter, page],
     queryFn: () =>
       leadService.getAll({
+        leadType,
         search: search || undefined,
         status: statusFilter || undefined,
         source: sourceFilter || undefined,
@@ -205,7 +207,8 @@ export default function Leads() {
   }, [search, statusFilter, sourceFilter, projectFilter, agentFilter, createdFrom, createdTo, followUpFrom, followUpTo, hasFollowUpFilter, overdueFilter, page]);
 
   const bulkMutation = useMutation({
-    mutationFn: ({ file, assignTo, project }) => leadService.bulkUpload(file, { assignTo, project }),
+    mutationFn: ({ file, assignTo, project, leadType: uploadType }) =>
+      leadService.bulkUpload(file, { assignTo, project, leadType: uploadType }),
     onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: ['leads'] });
       qc.invalidateQueries({ queryKey: ['stats'] });
@@ -218,8 +221,10 @@ export default function Leads() {
     },
   });
 
-  const handleBulkUpload = async (file, { assignTo, project } = {}) => {
-    const result = await bulkMutation.mutateAsync({ file, assignTo, project }).catch(() => null);
+  const handleBulkUpload = async (file, { assignTo, project, leadType: uploadType } = {}) => {
+    const result = await bulkMutation
+      .mutateAsync({ file, assignTo, project, leadType: uploadType })
+      .catch(() => null);
     return result;
   };
 
@@ -227,6 +232,7 @@ export default function Leads() {
     setExporting(true);
     try {
       const blob = await leadService.exportCsv({
+        leadType,
         search: search || undefined,
         status: statusFilter || undefined,
         source: sourceFilter || undefined,
@@ -260,9 +266,13 @@ export default function Leads() {
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-3 mb-5">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Leads</h1>
+          <h1 className="text-xl font-bold text-gray-900">
+            {isDatabase ? 'Database' : 'Leads'}
+          </h1>
           <p className="text-xs text-gray-500 mt-0.5">
-            {totalLeads} lead{totalLeads !== 1 ? 's' : ''} found
+            {isDatabase
+              ? `${totalLeads} database contact${totalLeads !== 1 ? 's' : ''} (bulk-uploaded cold data)`
+              : `${totalLeads} lead${totalLeads !== 1 ? 's' : ''} found`}
           </p>
         </div>
         <div className="flex w-full sm:w-auto gap-2">
@@ -534,6 +544,7 @@ export default function Leads() {
           isLoading={bulkMutation.isPending}
           agents={users}
           projects={projects}
+          defaultLeadType={leadType}
         />
       )}
 
