@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -27,6 +27,31 @@ const queryClient = new QueryClient({
     queries: { retry: 1, staleTime: 30_000, refetchOnWindowFocus: false },
   },
 });
+
+// Toasts sit top-right on desktop (conventional), but on mobile that overlaps the
+// lead drawer's ✕ close button — so below the `md` breakpoint we move them top-left.
+function ResponsiveToaster() {
+  const query = '(max-width: 767px)';
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia(query).matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const onChange = (e) => setIsMobile(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
+  return (
+    <Toaster
+      position={isMobile ? 'top-left' : 'top-right'}
+      toastOptions={{
+        duration: 3000,
+        style: { fontSize: '13px', borderRadius: '8px' },
+      }}
+    />
+  );
+}
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
@@ -61,13 +86,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 3000,
-            style: { fontSize: '13px', borderRadius: '8px' },
-          }}
-        />
+        <ResponsiveToaster />
       </AuthProvider>
     </QueryClientProvider>
   </React.StrictMode>

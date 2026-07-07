@@ -126,6 +126,7 @@ export default function Reports() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const isAdmin = user?.role === 'admin';
+  const isSales = user?.role === 'sales';
   const [period, setPeriod] = useState('today');
   const [custom, setCustom] = useState({ from: ymd(new Date()), to: ymd(new Date()) });
 
@@ -134,10 +135,11 @@ export default function Reports() {
     [period, custom]
   );
 
-  const queryKey = ['report', 'agents', from, to];
+  // Sales agents get their own scoped report; admin/manager get the full team report.
+  const queryKey = ['report', isSales ? 'me' : 'agents', from, to];
   const { data, isFetching } = useQuery({
     queryKey,
-    queryFn: () => reportService.getAgents({ from, to }),
+    queryFn: () => (isSales ? reportService.getMine({ from, to }) : reportService.getAgents({ from, to })),
     keepPreviousData: true,
   });
 
@@ -157,15 +159,22 @@ export default function Reports() {
     }
   };
 
-  const agents = data?.agents || [];
-  const totals = data?.totals || { leadsAssigned: 0, leadsCalled: 0, leadsWhatsapped: 0, followUpsDone: 0, closed: 0 };
+  // For sales, the "totals" strip shows their own numbers (data.agent); the
+  // per-agent table is hidden entirely.
+  const agents = isSales ? [] : (data?.agents || []);
+  const totals =
+    (isSales ? data?.agent : data?.totals) ||
+    { leadsAssigned: 0, leadsCalled: 0, leadsWhatsapped: 0, followUpsDone: 0, closed: 0 };
 
   return (
     <div className="p-4 sm:p-6 max-w-6xl mx-auto space-y-5">
       <div>
-        <h1 className="text-xl font-bold text-gray-900">Reports</h1>
+        <h1 className="text-xl font-bold text-gray-900">
+          {isSales ? 'My Report' : 'Reports'}
+        </h1>
         <p className="text-xs text-gray-500 mt-0.5">
-          Agent-wise activity {isFetching && <span className="text-blue-500">· refreshing…</span>}
+          {isSales ? 'Your activity' : 'Agent-wise activity'}{' '}
+          {isFetching && <span className="text-blue-500">· refreshing…</span>}
         </p>
       </div>
 
@@ -221,7 +230,8 @@ export default function Reports() {
         ))}
       </div>
 
-      {/* Per-agent table */}
+      {/* Per-agent table — team view only (sales see just their own totals above) */}
+      {!isSales && (
       <div className="card">
         <div className="card-body">
           <div className="flex items-center justify-between mb-3">
@@ -293,6 +303,7 @@ export default function Reports() {
           )}
         </div>
       </div>
+      )}
     </div>
   );
 }

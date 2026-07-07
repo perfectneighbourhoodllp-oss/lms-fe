@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { STATUSES, STATUS_STYLE } from './LeadTable';
+import { STATUSES, STATUS_STYLE, TAGS } from './LeadTable';
 import { leadService } from '../services/leadService';
 
 const waLink = (phone) => `https://wa.me/${phone.replace(/\D/g, '')}`;
@@ -29,12 +29,14 @@ export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemar
     Object.entries(lead.customFields || {}).map(([key, value]) => ({ key, value: String(value) }))
   );
   const [notes, setNotes] = useState(lead.notes || '');
+  const [tags, setTags] = useState(lead.tags || []);
   const [assignedTo, setAssignedTo] = useState(lead.assignedTo?._id || '');
   const [remarkText, setRemarkText] = useState('');
   const [submittingRemark, setSubmittingRemark] = useState(false);
 
   const remarks = lead.remarks || [];
   const contactLog = lead.contactLog || [];
+  const statusLog = lead.statusLog || [];
 
   const qc = useQueryClient();
   // Log a Call/WhatsApp tap, then refresh so the contact history updates.
@@ -81,6 +83,7 @@ export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemar
     setStatus(lead.status);
     setFollowUpDate(toDateTimeLocal(lead.followUpDate));
     setNotes(lead.notes || '');
+    setTags(lead.tags || []);
     setAssignedTo(lead.assignedTo?._id || '');
     setRemarkText('');
     setCustomFields(Object.entries(lead.customFields || {}).map(([key, value]) => ({ key, value: String(value) })));
@@ -100,10 +103,14 @@ export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemar
       status,
       followUpDate: followUpIso,
       notes,
+      tags,
       assignedTo: assignedTo || null,
       customFields: cf,
     });
   };
+
+  const toggleTag = (t) =>
+    setTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
 
   const addCustomField = () => setCustomFields([...customFields, { key: '', value: '' }]);
   const updateCustom = (i, patch) => setCustomFields(customFields.map((c, idx) => (idx === i ? { ...c, ...patch } : c)));
@@ -240,6 +247,38 @@ export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemar
           </div>
         )}
 
+        {/* Status history — every status change on this lead, newest first */}
+        <div className="px-5 py-3 border-b border-gray-100">
+          <p className="text-xs font-semibold text-gray-600 mb-2">
+            Status history{statusLog.length > 0 ? ` (${statusLog.length})` : ''}
+          </p>
+          <div className="space-y-1.5 max-h-44 overflow-y-auto">
+            {[...statusLog].reverse().map((s, i) => (
+              <div key={i} className="flex items-center justify-between text-xs gap-2">
+                <span className="flex items-center gap-1.5 flex-wrap min-w-0">
+                  {s.from && (
+                    <>
+                      <span className={`badge ${STATUS_STYLE[s.from] || 'bg-gray-100 text-gray-600'}`}>{s.from}</span>
+                      <span className="text-gray-400">→</span>
+                    </>
+                  )}
+                  <span className={`badge ${STATUS_STYLE[s.to] || 'bg-gray-100 text-gray-600'}`}>{s.to}</span>
+                  {s.by?.name && <span className="text-gray-400">by {s.by.name}</span>}
+                </span>
+                <span className="text-gray-400 flex-shrink-0">{fmtDateTime(s.at)}</span>
+              </div>
+            ))}
+            {/* Creation anchors the bottom of the timeline */}
+            <div className="flex items-center justify-between text-xs gap-2">
+              <span className="flex items-center gap-1.5">
+                <span className="text-gray-500">🟢 Created</span>
+                {lead.createdBy?.name && <span className="text-gray-400">by {lead.createdBy.name}</span>}
+              </span>
+              <span className="text-gray-400 flex-shrink-0">{fmtDateTime(lead.createdAt)}</span>
+            </div>
+          </div>
+        </div>
+
         {/* Related leads (same phone, other projects) */}
         {relatedLeads.length > 0 && (
           <div className="px-5 py-3 border-b border-gray-100 bg-amber-50">
@@ -343,6 +382,30 @@ export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemar
           </div>
 
           <div>
+            <label className="label">Tags</label>
+            <div className="flex flex-wrap gap-1.5">
+              {TAGS.map((t) => {
+                const on = tags.includes(t);
+                return (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => toggleTag(t)}
+                    className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                      on
+                        ? 'bg-blue-600 border-blue-600 text-white'
+                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    {t}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-gray-400 mt-1">Tap to tag this lead (e.g. Low Budget). Saves with the button below.</p>
+          </div>
+
+          <div>
             <label className="label">Follow-up Date & Time</label>
             <input
               type="datetime-local"
@@ -365,6 +428,45 @@ export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemar
             </div>
           )}
 
+          {/* Remarks — kept directly above Notes for quick logging */}
+          <div>
+            <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
+              Remarks ({remarks.length})
+            </p>
+
+            {remarks.length > 0 && (
+              <div className="space-y-2 mb-3 max-h-72 overflow-y-auto">
+                {remarks.slice().reverse().map((r, i) => (
+                  <div key={r._id || i} className="bg-gray-50 rounded-lg p-3 text-sm">
+                    <p className="text-gray-800">{r.text}</p>
+                    <p className="text-xs text-gray-400 mt-1.5">
+                      {r.addedBy?.name || 'Unknown'} · {fmtDateTime(r.createdAt)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={remarkText}
+                onChange={(e) => setRemarkText(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleAddRemark()}
+                placeholder="Add a remark..."
+                className="input py-2 text-sm flex-1"
+                disabled={submittingRemark}
+              />
+              <button
+                onClick={handleAddRemark}
+                disabled={submittingRemark || !remarkText.trim()}
+                className="btn-primary text-sm py-2 px-3"
+              >
+                {submittingRemark ? '...' : 'Add'}
+              </button>
+            </div>
+          </div>
+
           <div>
             <label className="label">Notes</label>
             <textarea
@@ -382,45 +484,6 @@ export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemar
 
           <div className="text-xs text-gray-400 pt-1">
             Source: {lead.source} · Created by {lead.createdBy?.name || 'System'}
-          </div>
-        </div>
-
-        {/* Remarks */}
-        <div className="px-5 py-4 border-b border-gray-100">
-          <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-3">
-            Remarks ({remarks.length})
-          </p>
-
-          {remarks.length > 0 && (
-            <div className="space-y-2 mb-3 max-h-72 overflow-y-auto">
-              {remarks.slice().reverse().map((r, i) => (
-                <div key={r._id || i} className="bg-gray-50 rounded-lg p-3 text-sm">
-                  <p className="text-gray-800">{r.text}</p>
-                  <p className="text-xs text-gray-400 mt-1.5">
-                    {r.addedBy?.name || 'Unknown'} · {fmtDateTime(r.createdAt)}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={remarkText}
-              onChange={(e) => setRemarkText(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleAddRemark()}
-              placeholder="Add a remark..."
-              className="input py-2 text-sm flex-1"
-              disabled={submittingRemark}
-            />
-            <button
-              onClick={handleAddRemark}
-              disabled={submittingRemark || !remarkText.trim()}
-              className="btn-primary text-sm py-2 px-3"
-            >
-              {submittingRemark ? '...' : 'Add'}
-            </button>
           </div>
         </div>
 

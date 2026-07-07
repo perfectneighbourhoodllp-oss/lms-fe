@@ -13,7 +13,7 @@ const NAV = [
   { to: '/attendance', label: 'Attendance', icon: '📍' },
   { to: '/team', label: 'Team', icon: '🧑‍💼', roles: ['admin', 'manager'] },
   { to: '/agents', label: 'Agent Performance', icon: '📊', roles: ['admin', 'manager'] },
-  { to: '/reports', label: 'Reports', icon: '📈', roles: ['admin', 'manager'] },
+  { to: '/reports', label: 'Reports', icon: '📈' },
   { to: '/meta-webhook', label: 'Meta Ads', icon: '📡', roles: ['admin', 'manager'] },
   { to: '/sheet-sync-logs', label: 'Sheet Sync Log', icon: '📄', roles: ['admin', 'manager'] },
   { to: '/activity-logs', label: 'Activity Logs', icon: '📋', roles: ['admin'] },

@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { leadService, userService, projectService } from '../services/leadService';
-import LeadTable, { STATUSES, SOURCES } from '../components/LeadTable';
+import LeadTable, { STATUSES, SOURCES, TAGS } from '../components/LeadTable';
 import LeadDrawer from '../components/LeadDrawer';
 import AddLeadModal from '../components/AddLeadModal';
 import BulkUploadModal from '../components/BulkUploadModal';
@@ -29,6 +29,7 @@ export default function Leads({ leadType = 'live' }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
+  const [tagFilter, setTagFilter] = useState('');
   const [projectFilter, setProjectFilter] = useState('');
   const [agentFilter, setAgentFilter] = useState('');
   const [createdFrom, setCreatedFrom] = useState('');
@@ -38,6 +39,7 @@ export default function Leads({ leadType = 'live' }) {
   const [hasFollowUpFilter, setHasFollowUpFilter] = useState(''); // '' | 'true' | 'false'
   const [overdueFilter, setOverdueFilter] = useState(false); // toggled via URL param from Dashboard
   const [page, setPage] = useState(1);
+  const [pageInput, setPageInput] = useState('');
   const [dateFilterOpen, setDateFilterOpen] = useState(false);
 
   // Read URL params (used by notifications + dashboard stat-card click-through):
@@ -62,13 +64,14 @@ export default function Leads({ leadType = 'live' }) {
   }, [searchParams]);
 
   const { data: leadsData, isLoading } = useQuery({
-    queryKey: ['leads', leadType, search, statusFilter, sourceFilter, projectFilter, agentFilter, createdFrom, createdTo, followUpFrom, followUpTo, hasFollowUpFilter, overdueFilter, page],
+    queryKey: ['leads', leadType, search, statusFilter, sourceFilter, tagFilter, projectFilter, agentFilter, createdFrom, createdTo, followUpFrom, followUpTo, hasFollowUpFilter, overdueFilter, page],
     queryFn: () =>
       leadService.getAll({
         leadType,
         search: search || undefined,
         status: statusFilter || undefined,
         source: sourceFilter || undefined,
+        tag: tagFilter || undefined,
         project: projectFilter || undefined,
         assignedTo: agentFilter || undefined,
         createdFrom: createdFrom || undefined,
@@ -204,7 +207,7 @@ export default function Leads({ leadType = 'live' }) {
   // Clear selection when filters or page change (avoid stale selection across views)
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [search, statusFilter, sourceFilter, projectFilter, agentFilter, createdFrom, createdTo, followUpFrom, followUpTo, hasFollowUpFilter, overdueFilter, page]);
+  }, [search, statusFilter, sourceFilter, tagFilter, projectFilter, agentFilter, createdFrom, createdTo, followUpFrom, followUpTo, hasFollowUpFilter, overdueFilter, page]);
 
   const bulkMutation = useMutation({
     mutationFn: ({ file, assignTo, project, leadType: uploadType }) =>
@@ -236,6 +239,7 @@ export default function Leads({ leadType = 'live' }) {
         search: search || undefined,
         status: statusFilter || undefined,
         source: sourceFilter || undefined,
+        tag: tagFilter || undefined,
         project: projectFilter || undefined,
         assignedTo: agentFilter || undefined,
         createdFrom: createdFrom || undefined,
@@ -322,6 +326,14 @@ export default function Leads({ leadType = 'live' }) {
         </select>
         <select
           className="input w-full sm:w-40"
+          value={tagFilter}
+          onChange={(e) => { setTagFilter(e.target.value); setPage(1); }}
+        >
+          <option value="">All Tags</option>
+          {TAGS.map((t) => <option key={t}>{t}</option>)}
+        </select>
+        <select
+          className="input w-full sm:w-40"
           value={projectFilter}
           onChange={(e) => { setProjectFilter(e.target.value); setPage(1); }}
         >
@@ -361,10 +373,11 @@ export default function Leads({ leadType = 'live' }) {
           <option value="true">With follow-up</option>
           <option value="false">Without follow-up</option>
         </select>
-        {(search || statusFilter || sourceFilter || projectFilter || agentFilter || createdFrom || createdTo || followUpFrom || followUpTo || hasFollowUpFilter || overdueFilter) && (
+        {(search || statusFilter || sourceFilter || tagFilter || projectFilter || agentFilter || createdFrom || createdTo || followUpFrom || followUpTo || hasFollowUpFilter || overdueFilter) && (
           <button
             onClick={() => {
               setSearch(''); setStatusFilter(''); setSourceFilter('');
+              setTagFilter('');
               setProjectFilter(''); setAgentFilter('');
               setCreatedFrom(''); setCreatedTo('');
               setFollowUpFrom(''); setFollowUpTo('');
@@ -485,7 +498,7 @@ export default function Leads({ leadType = 'live' }) {
           <p className="text-xs text-gray-400 text-center sm:text-left">
             Page {page} of {totalPages} · {totalLeads} total leads
           </p>
-          <div className="flex gap-2 justify-center">
+          <div className="flex gap-2 justify-center items-center">
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
@@ -493,6 +506,36 @@ export default function Leads({ leadType = 'live' }) {
             >
               Prev
             </button>
+
+            {/* Jump directly to a page number */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const n = parseInt(pageInput, 10);
+                if (!Number.isNaN(n)) setPage(Math.min(totalPages, Math.max(1, n)));
+                setPageInput('');
+              }}
+              className="flex items-center gap-1"
+            >
+              <input
+                type="number"
+                min={1}
+                max={totalPages}
+                value={pageInput}
+                onChange={(e) => setPageInput(e.target.value)}
+                placeholder={String(page)}
+                aria-label="Go to page"
+                className="input text-xs py-1.5 w-14 text-center"
+              />
+              <button
+                type="submit"
+                disabled={!pageInput}
+                className="btn-secondary text-xs py-1.5 px-3 disabled:opacity-40"
+              >
+                Go
+              </button>
+            </form>
+
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}

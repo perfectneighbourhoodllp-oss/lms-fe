@@ -3,16 +3,20 @@ import { leadService } from '../services/leadService';
 // Fire-and-forget: record a contact attempt (call/whatsapp) on the lead.
 const logContact = (id, channel) => leadService.logContact(id, channel).catch(() => {});
 
-export const STATUSES = ['New', 'Called', 'RNR', 'Interested', 'Webinar', 'Site Visit', 'Closed', 'Not Interested', 'Dead'];
+export const STATUSES = ['New', 'Called', 'RNR', 'Follow Up', 'Interested', 'Webinar', 'Site Visit', 'Cross Selling', 'Closed', 'Not Interested', 'Dead'];
 export const SOURCES = ['Instagram', 'Ads', 'Referral', 'Walk-in', 'Website', 'Database', 'Other'];
+// Keep in sync with TAGS in lms-be/models/Lead.js
+export const TAGS = ['Low Budget', 'Budget Mismatch', 'Wants Different Config', 'Location Mismatch', 'Resale Only', 'Rental Only', 'Not Ready - Timeline', 'Investor', 'NRI', 'Loan Required'];
 
 export const STATUS_STYLE = {
   New: 'bg-blue-100 text-blue-700',
   Called: 'bg-yellow-100 text-yellow-700',
   RNR: 'bg-amber-100 text-amber-700',
+  'Follow Up': 'bg-indigo-100 text-indigo-700',
   Interested: 'bg-purple-100 text-purple-700',
   Webinar: 'bg-cyan-100 text-cyan-700',
   'Site Visit': 'bg-orange-100 text-orange-700',
+  'Cross Selling': 'bg-pink-100 text-pink-700',
   Closed: 'bg-green-100 text-green-700',
   'Not Interested': 'bg-gray-200 text-gray-600',
   Dead: 'bg-red-100 text-red-700',
@@ -161,6 +165,14 @@ function LeadCard({ lead, onSelect, currentUserId, onAccept, onReject, accepting
           {remarksCount > 0 && <span className="ml-2">· {remarksCount} remark{remarksCount !== 1 ? 's' : ''}</span>}
         </span>
       </div>
+
+      {lead.tags?.length > 0 && (
+        <div className="flex flex-wrap gap-1 mb-2">
+          {lead.tags.map((t) => (
+            <span key={t} className="badge bg-blue-50 text-blue-600 text-[10px]">{t}</span>
+          ))}
+        </div>
+      )}
 
       <div className="text-[10px] text-gray-400 mb-3">
         Created {fmtDateTime(lead.createdAt)}
