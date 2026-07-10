@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
@@ -11,7 +11,19 @@ const webhookService = {
   getLogs: (params) => api.get('/webhook/logs', { params }).then((r) => r.data),
   getMappings: () => api.get('/webhook/mappings').then((r) => r.data),
   createMapping: (data) => api.post('/webhook/mappings', data).then((r) => r.data),
+  updateMapping: (id, data) => api.patch(`/webhook/mappings/${id}`, data).then((r) => r.data),
   deleteMapping: (id) => api.delete(`/webhook/mappings/${id}`).then((r) => r.data),
+};
+
+const metaService = {
+  getStatus: () => api.get('/meta/status').then((r) => r.data),
+  getConnectUrl: () => api.get('/meta/oauth/connect').then((r) => r.data),
+  activate: (pageId) => api.post(`/meta/pages/${pageId}/activate`).then((r) => r.data),
+  disconnect: (pageId) => api.post(`/meta/pages/${pageId}/disconnect`).then((r) => r.data),
+  remove: (pageId) => api.delete(`/meta/pages/${pageId}`).then((r) => r.data),
+  setProject: (pageId, defaultProject) =>
+    api.patch(`/meta/pages/${pageId}`, { defaultProject }).then((r) => r.data),
+  getForms: (pageId) => api.get(`/meta/pages/${pageId}/forms`).then((r) => r.data),
 };
 
 const STATUS_STYLE = {
@@ -140,6 +152,10 @@ function ProjectMappings({ isAdmin }) {
   const [project, setProject] = useState('');
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [label, setLabel] = useState('');
+  const [formPageId, setFormPageId] = useState('');
+  const [agentIds, setAgentIds] = useState([]);
+  const toggleAgent = (id) =>
+    setAgentIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   const { data: mappings = [] } = useQuery({
     queryKey: ['meta-mappings'],
@@ -151,6 +167,24 @@ function ProjectMappings({ isAdmin }) {
     queryFn: projectService.getAll,
   });
 
+  // Connected+active Pages, to list their lead forms in the picker.
+  const { data: metaStatus } = useQuery({
+    queryKey: ['meta-status'],
+    queryFn: metaService.getStatus,
+  });
+  const activePages = (metaStatus?.pages || []).filter((p) => p.status === 'active');
+  const effectivePageId = formPageId || activePages[0]?.pageId || '';
+
+  const { data: forms = [], isLoading: formsLoading } = useQuery({
+    queryKey: ['meta-forms', effectivePageId],
+    queryFn: () => metaService.getForms(effectivePageId),
+    enabled: type === 'form' && !!effectivePageId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Which form IDs already have a mapping — so the picker can flag them.
+  const mappedFormIds = new Set(mappings.filter((m) => m.type === 'form').map((m) => m.metaId));
+
   const createMutation = useMutation({
     mutationFn: webhookService.createMapping,
     onSuccess: () => {
@@ -159,9 +193,16 @@ function ProjectMappings({ isAdmin }) {
       setType('form');
       setProject('');
       setLabel('');
+      setAgentIds([]);
       toast.success('Mapping added');
     },
     onError: (err) => toast.error(err.response?.data?.message || 'Failed to add mapping'),
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, ...data }) => webhookService.updateMapping(id, data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['meta-mappings'] }),
+    onError: (err) => toast.error(err.response?.data?.message || 'Failed to update agents'),
   });
 
   const deleteMutation = useMutation({
@@ -173,10 +214,21 @@ function ProjectMappings({ isAdmin }) {
     onError: () => toast.error('Failed to remove mapping'),
   });
 
+  // Agents selectable for a mapping = its project's assigned agents.
+  const agentsForProject = (projectId) =>
+    projects.find((p) => p._id === projectId)?.assignedAgents || [];
+  const createFormAgents = agentsForProject(project);
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!metaId.trim() || !project) return;
-    createMutation.mutate({ metaId: metaId.trim(), type, project, label: label.trim() || undefined });
+    createMutation.mutate({
+      metaId: metaId.trim(),
+      type,
+      project,
+      label: label.trim() || undefined,
+      assignedAgents: agentIds.filter((id) => createFormAgents.some((a) => a._id === id)),
+    });
   };
 
   return (
@@ -201,10 +253,76 @@ function ProjectMappings({ isAdmin }) {
                   <span className="text-xs font-mono text-gray-600 truncate">{m.metaId}</span>
                   {m.label && <span className="text-xs text-gray-400">({m.label})</span>}
                 </div>
-                <p className="text-sm text-gray-800 mt-1 font-medium">
-                  → {m.project?.name || 'Unknown project'}
-                  {m.project?.developer && <span className="text-gray-400 font-normal"> by {m.project.developer}</span>}
+                {isAdmin ? (
+                  <div className="flex items-center gap-1.5 mt-1">
+                    <span className="text-sm text-gray-400">→</span>
+                    <select
+                      value={m.project?._id || ''}
+                      disabled={updateMutation.isPending}
+                      onChange={(e) =>
+                        // Changing project resets agents (they must belong to the new project)
+                        updateMutation.mutate({ id: m._id, project: e.target.value, assignedAgents: [] })
+                      }
+                      className="input py-1 text-xs font-medium max-w-[240px]"
+                    >
+                      {!m.project && <option value="">Unknown project</option>}
+                      {projects.map((p) => (
+                        <option key={p._id} value={p._id}>
+                          {p.name}{p.developer ? ` (${p.developer})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray-800 mt-1 font-medium">
+                    → {m.project?.name || 'Unknown project'}
+                    {m.project?.developer && <span className="text-gray-400 font-normal"> by {m.project.developer}</span>}
+                  </p>
+                )}
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {m.assignedAgents?.length === 1
+                    ? <>👤 {m.assignedAgents[0].name}</>
+                    : m.assignedAgents?.length > 1
+                    ? <>↻ {m.assignedAgents.map((a) => a.name).join(', ')}</>
+                    : <span className="text-gray-400">↻ All project agents</span>}
                 </p>
+
+                {/* Inline agent editor (admin) — chips scoped to the mapping's project */}
+                {isAdmin && (() => {
+                  const opts = agentsForProject(m.project?._id);
+                  if (!opts.length) {
+                    return (
+                      <p className="text-[11px] text-amber-600 mt-1.5">
+                        Add agents to this project to assign specific ones here.
+                      </p>
+                    );
+                  }
+                  const current = new Set((m.assignedAgents || []).map((a) => a._id));
+                  return (
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                      <span className="text-[11px] text-gray-400 mr-0.5">Tap to assign:</span>
+                      {opts.map((a) => {
+                        const on = current.has(a._id);
+                        return (
+                          <button
+                            key={a._id}
+                            type="button"
+                            disabled={updateMutation.isPending}
+                            onClick={() => {
+                              const next = on
+                                ? [...current].filter((x) => x !== a._id)
+                                : [...current, a._id];
+                              updateMutation.mutate({ id: m._id, assignedAgents: next });
+                            }}
+                            className={`text-[11px] px-2 py-1 rounded-md border transition ${on ? 'bg-blue-50 border-blue-300 text-blue-700 font-medium' : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'}`}
+                          >
+                            {on ? '✓ ' : ''}{a.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </div>
               {isAdmin && (
                 <button
@@ -229,8 +347,45 @@ function ProjectMappings({ isAdmin }) {
       {isAdmin && (
         <form onSubmit={handleSubmit} className="px-4 sm:px-5 py-4 border-t border-gray-100 bg-gray-50 rounded-b-xl">
           <p className="text-xs font-semibold text-gray-600 mb-3">Add New Mapping</p>
+
+          {/* Form picker — pick a lead form by name instead of pasting its ID */}
+          {type === 'form' && activePages.length > 0 && (
+            <div className="mb-2 space-y-2">
+              {activePages.length > 1 && (
+                <select
+                  value={effectivePageId}
+                  onChange={(e) => setFormPageId(e.target.value)}
+                  className="input py-2 text-xs"
+                >
+                  {activePages.map((p) => (
+                    <option key={p.pageId} value={p.pageId}>{p.name || p.pageId}</option>
+                  ))}
+                </select>
+              )}
+              <select
+                value={metaId}
+                onChange={(e) => {
+                  const f = forms.find((x) => x.id === e.target.value);
+                  setMetaId(e.target.value);
+                  if (f && !label.trim()) setLabel(f.name);
+                }}
+                className="input py-2 text-xs"
+              >
+                <option value="">
+                  {formsLoading ? 'Loading forms…' : `Pick a lead form (${forms.length})…`}
+                </option>
+                {forms.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {mappedFormIds.has(f.id) ? '✓ ' : ''}{f.name}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-gray-400">Or paste an ID manually below. ✓ = already mapped.</p>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <select value={type} onChange={(e) => setType(e.target.value)} className="input py-2 text-xs">
+            <select value={type} onChange={(e) => { setType(e.target.value); setMetaId(''); }} className="input py-2 text-xs">
               <option value="form">Form ID</option>
               <option value="page">Page ID</option>
             </select>
@@ -242,7 +397,7 @@ function ProjectMappings({ isAdmin }) {
               className="input py-2 text-xs font-mono"
               required
             />
-            <select value={project} onChange={(e) => setProject(e.target.value)} className="input py-2 text-xs" required>
+            <select value={project} onChange={(e) => { setProject(e.target.value); setAgentIds([]); }} className="input py-2 text-xs" required>
               <option value="">Select Project</option>
               {projects.map((p) => (
                 <option key={p._id} value={p._id}>
@@ -258,6 +413,32 @@ function ProjectMappings({ isAdmin }) {
               className="input py-2 text-xs"
             />
           </div>
+
+          {/* Agent assignment for this mapping */}
+          {project && (
+            <div className="mt-3">
+              <p className="text-xs font-semibold text-gray-500 mb-1">Assign to agents (optional)</p>
+              <p className="text-[11px] text-gray-400 mb-2">
+                None → round-robin across all project agents · one → always that agent · two+ → round-robin within them.
+              </p>
+              {createFormAgents.length === 0 ? (
+                <p className="text-[11px] text-amber-600">This project has no agents assigned yet.</p>
+              ) : (
+                <div className="flex flex-wrap gap-2">
+                  {createFormAgents.map((a) => {
+                    const on = agentIds.includes(a._id);
+                    return (
+                      <button type="button" key={a._id} onClick={() => toggleAgent(a._id)}
+                        className={`text-xs px-2.5 py-1.5 rounded-lg border transition ${on ? 'bg-blue-50 border-blue-300 text-blue-700 font-medium' : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'}`}>
+                        {on ? '✓ ' : ''}{a.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           <button
             type="submit"
             disabled={createMutation.isPending || !metaId.trim() || !project}
@@ -705,6 +886,153 @@ function SheetConfigs({ isAdmin }) {
   );
 }
 
+/* ─── Connect with Facebook (OAuth) ───────────────────────── */
+function ConnectFacebook({ isAdmin }) {
+  const qc = useQueryClient();
+
+  const { data: status } = useQuery({
+    queryKey: ['meta-status'],
+    queryFn: metaService.getStatus,
+    refetchInterval: 30_000,
+  });
+
+  const { data: projects = [] } = useQuery({
+    queryKey: ['projects'],
+    queryFn: projectService.getAll,
+  });
+
+  // Surface the OAuth callback result (?meta_connected / ?meta_error) once on load.
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    if (p.get('meta_connected')) {
+      toast.success(`Facebook connected — ${p.get('meta_connected')} Page(s) found. Activate the ones you want.`);
+    } else if (p.get('meta_error')) {
+      toast.error(`Facebook connect failed: ${p.get('meta_error')}`);
+    }
+    if (p.get('meta_connected') || p.get('meta_error')) {
+      qc.invalidateQueries({ queryKey: ['meta-status'] });
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [qc]);
+
+  const connect = async () => {
+    try {
+      const { url } = await metaService.getConnectUrl();
+      window.location.href = url;
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not start Facebook login');
+    }
+  };
+
+  const onDone = (okMsg) => ({
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['meta-status'] }); if (okMsg) toast.success(okMsg); },
+    onError: (err) => toast.error(err.response?.data?.message || 'Action failed'),
+  });
+
+  const activateM = useMutation({ mutationFn: (id) => metaService.activate(id), ...onDone('Page activated — leads will now flow in') });
+  const disconnectM = useMutation({ mutationFn: (id) => metaService.disconnect(id), ...onDone('Page disconnected') });
+  const removeM = useMutation({ mutationFn: (id) => metaService.remove(id), ...onDone('Page removed') });
+  const projectM = useMutation({ mutationFn: ({ id, project }) => metaService.setProject(id, project), ...onDone() });
+
+  const pages = status?.pages ?? [];
+
+  return (
+    <div className="card mb-5">
+      <div className="p-4 sm:p-5 border-b border-gray-100 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-semibold text-sm text-gray-800">Connect with Facebook</p>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Log in with Facebook, pick a Page, and its lead ads flow straight into the CRM.
+          </p>
+        </div>
+        {isAdmin && (
+          <button
+            onClick={connect}
+            disabled={status && !status.configured}
+            title={status && !status.configured ? 'Set META_APP_ID, META_OAUTH_REDIRECT_URI and TOKEN_ENC_KEY in the backend .env first' : ''}
+            className="btn-primary text-xs py-2 px-3 flex-shrink-0"
+          >
+            {pages.length ? '+ Connect another' : 'Connect Facebook'}
+          </button>
+        )}
+      </div>
+
+      {status && !status.configured && (
+        <div className="px-4 sm:px-5 py-3 text-xs text-amber-700 bg-amber-50 border-b border-amber-100">
+          OAuth isn't configured yet. Add <span className="font-mono">META_APP_ID</span>,{' '}
+          <span className="font-mono">META_OAUTH_REDIRECT_URI</span> and{' '}
+          <span className="font-mono">TOKEN_ENC_KEY</span> to the backend <span className="font-mono">.env</span>{' '}
+          (see META_FACEBOOK_LOGIN_SETUP.md).
+        </div>
+      )}
+
+      {pages.length === 0 ? (
+        <div className="text-center py-8 text-gray-400 text-xs">
+          No Pages connected yet. Click <span className="font-medium">Connect Facebook</span> to link one.
+        </div>
+      ) : (
+        <div className="divide-y divide-gray-50">
+          {pages.map((p) => {
+            const badge =
+              p.status === 'active' ? 'bg-green-100 text-green-700'
+              : p.status === 'error' ? 'bg-red-100 text-red-700'
+              : 'bg-gray-100 text-gray-500';
+            return (
+              <div key={p.pageId} className="flex items-center gap-3 px-4 sm:px-5 py-3 flex-wrap">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={`badge ${badge}`}>{p.status}</span>
+                    <span className="text-sm font-medium text-gray-800 truncate">{p.name || p.pageId}</span>
+                    {p.igBusinessId && <span className="text-xs text-gray-400">+ Instagram</span>}
+                  </div>
+                  <p className="text-xs font-mono text-gray-400 mt-0.5 truncate">Page {p.pageId}</p>
+                  {p.status === 'error' && p.lastError && (
+                    <p className="text-xs text-red-500 mt-0.5">{p.lastError}</p>
+                  )}
+                  {isAdmin && (
+                    <div className="mt-1.5">
+                      <select
+                        value={p.defaultProject?._id || ''}
+                        onChange={(e) => projectM.mutate({ id: p.pageId, project: e.target.value })}
+                        className="input py-1 text-xs"
+                        title="Default project for this Page's leads (form mapping still overrides)"
+                      >
+                        <option value="">No default project</option>
+                        {projects.map((pr) => (
+                          <option key={pr._id} value={pr._id}>{pr.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+                {isAdmin && (
+                  <div className="flex gap-1.5 flex-shrink-0 flex-wrap justify-end">
+                    {p.status === 'active' ? (
+                      <button onClick={() => disconnectM.mutate(p.pageId)} disabled={disconnectM.isPending}
+                        className="text-xs py-1 px-2 btn bg-yellow-50 text-yellow-700 border border-yellow-200 hover:bg-yellow-100">
+                        Disconnect
+                      </button>
+                    ) : (
+                      <button onClick={() => activateM.mutate(p.pageId)} disabled={activateM.isPending}
+                        className="btn-primary text-xs py-1 px-2">
+                        {activateM.isPending ? '...' : 'Activate'}
+                      </button>
+                    )}
+                    <button onClick={() => removeM.mutate(p.pageId)} disabled={removeM.isPending}
+                      className="btn-danger text-xs py-1 px-2">
+                      Remove
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function MetaWebhook() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
@@ -737,6 +1065,8 @@ export default function MetaWebhook() {
           Leads from Facebook and Instagram ads are automatically imported here
         </p>
       </div>
+
+      <ConnectFacebook isAdmin={isAdmin} />
 
       <SetupGuide webhookUrl={webhookUrl} />
 
