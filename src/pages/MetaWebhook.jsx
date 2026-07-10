@@ -287,7 +287,17 @@ function SheetFormPanel({ existing, projects, onSubmit, onCancel, isPending }) {
 
   const [sheetUrl, setSheetUrl] = useState('');
   const [project, setProject] = useState(existing?.project?._id || '');
+  const [agentIds, setAgentIds] = useState(
+    (existing?.assignedAgents || []).map((a) => a._id)
+  );
   const [label, setLabel] = useState(existing?.label || '');
+
+  // Agents selectable for this sheet = the selected project's assigned agents.
+  const selectedProject = projects.find((p) => p._id === project);
+  const projectAgents = selectedProject?.assignedAgents || [];
+
+  const toggleAgent = (id) =>
+    setAgentIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   const [colName, setColName] = useState(existing?.columnMap?.name || '');
   const [colPhone, setColPhone] = useState(existing?.columnMap?.phone || '');
   const [colEmail, setColEmail] = useState(existing?.columnMap?.email || '');
@@ -321,6 +331,8 @@ function SheetFormPanel({ existing, projects, onSubmit, onCancel, isPending }) {
 
     const payload = {
       project,
+      // Only keep selections that belong to the current project. [] → round-robin.
+      assignedAgents: agentIds.filter((id) => projectAgents.some((a) => a._id === id)),
       label: label.trim() || undefined,
       columnMap: Object.keys(columnMap).length ? columnMap : undefined,
       customFieldMap,
@@ -350,7 +362,12 @@ function SheetFormPanel({ existing, projects, onSubmit, onCancel, isPending }) {
             required
           />
         )}
-        <select value={project} onChange={(e) => setProject(e.target.value)} className="input py-2 text-xs" required>
+        <select
+          value={project}
+          onChange={(e) => { setProject(e.target.value); setAgentIds([]); }}
+          className="input py-2 text-xs"
+          required
+        >
           <option value="">Select Project</option>
           {projects.map((p) => (
             <option key={p._id} value={p._id}>
@@ -365,6 +382,51 @@ function SheetFormPanel({ existing, projects, onSubmit, onCancel, isPending }) {
           placeholder="Label (e.g. Godrej FB Leads)"
           className="input py-2 text-xs"
         />
+      </div>
+
+      {/* Per-sheet agent set */}
+      <div className="mt-3">
+        <p className="text-xs font-semibold text-gray-500 mb-1">Lead assignment for this sheet</p>
+        <p className="text-xs text-gray-400 mb-2">
+          Pick none → round-robin across all project agents · one → always that agent ·
+          two or more → round-robin only within those.
+        </p>
+        {!project ? (
+          <p className="text-xs text-gray-400">Select a project first.</p>
+        ) : projectAgents.length === 0 ? (
+          <p className="text-xs text-amber-600">
+            This project has no assigned agents yet. Add agents to the project first.
+          </p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {projectAgents.map((a) => {
+              const on = agentIds.includes(a._id);
+              return (
+                <button
+                  type="button"
+                  key={a._id}
+                  onClick={() => toggleAgent(a._id)}
+                  className={`text-xs px-2.5 py-1.5 rounded-lg border transition ${
+                    on
+                      ? 'bg-blue-50 border-blue-300 text-blue-700 font-medium'
+                      : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+                  }`}
+                >
+                  {on ? '✓ ' : ''}{a.name}
+                </button>
+              );
+            })}
+          </div>
+        )}
+        {project && projectAgents.length > 0 && (
+          <p className="text-xs text-gray-400 mt-2">
+            {agentIds.length === 0
+              ? '↻ Round-robin across all project agents'
+              : agentIds.length === 1
+              ? '👤 Every lead pinned to one agent (no reassign timer)'
+              : `↻ Round-robin between ${agentIds.length} selected agents`}
+          </p>
+        )}
       </div>
 
       <p className="text-xs font-semibold text-gray-500 mt-3 mb-2">Standard Column Mapping</p>
@@ -538,6 +600,15 @@ function SheetConfigs({ isAdmin }) {
                 <p className="text-sm text-gray-800 mt-0.5 font-medium">
                   → {s.project?.name || 'Unknown project'}
                   {s.project?.developer && <span className="text-gray-400 font-normal"> by {s.project.developer}</span>}
+                </p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {s.assignedAgents?.length === 1 ? (
+                    <>👤 Pinned to <span className="font-medium">{s.assignedAgents[0].name}</span></>
+                  ) : s.assignedAgents?.length > 1 ? (
+                    <>↻ Round-robin: <span className="font-medium">{s.assignedAgents.map((a) => a.name).join(', ')}</span></>
+                  ) : (
+                    <span className="text-gray-400">↻ Round-robin across all project agents</span>
+                  )}
                 </p>
                 <p className="text-xs text-gray-400 mt-0.5">
                   {s.lastSyncedRow} rows synced
