@@ -16,6 +16,7 @@ const fmtDateTime = (d) => {
 
 export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemark, onAccept, accepting, onReject, rejecting, currentUserId, users, canAssign, canDelete }) {
   const [status, setStatus] = useState(lead.status);
+  const [qualification, setQualification] = useState(lead.qualification || '');
   // Format for datetime-local input: YYYY-MM-DDTHH:mm in LOCAL time
   const toDateTimeLocal = (d) => {
     if (!d) return '';
@@ -81,6 +82,7 @@ export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemar
   // Sync state when a different lead is opened
   useEffect(() => {
     setStatus(lead.status);
+    setQualification(lead.qualification || '');
     setFollowUpDate(toDateTimeLocal(lead.followUpDate));
     setNotes(lead.notes || '');
     setTags(lead.tags || []);
@@ -101,6 +103,7 @@ export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemar
 
     onSave(lead._id, {
       status,
+      qualification: qualification || null,
       followUpDate: followUpIso,
       notes,
       tags,
@@ -379,6 +382,23 @@ export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemar
                 <option key={s}>{s}</option>
               ))}
             </select>
+          </div>
+
+          <div>
+            <label className="label">Qualification <span className="text-gray-400 font-normal">· sent to Meta</span></label>
+            <select
+              value={qualification}
+              onChange={(e) => setQualification(e.target.value)}
+              className="input py-2 text-sm"
+            >
+              <option value="">— Not set —</option>
+              <option value="Qualified">Qualified</option>
+              <option value="Not Qualified">Not Qualified</option>
+              <option value="Converted">Converted</option>
+            </select>
+            <p className="text-[11px] text-gray-400 mt-1">
+              Setting this reports the lead outcome to Meta (Conversions API) to improve ad targeting.
+            </p>
           </div>
 
           <div>
