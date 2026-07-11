@@ -18,6 +18,7 @@ import AgentProfile from './pages/AgentProfile';
 import MetaWebhook from './pages/MetaWebhook';
 import ActivityLogs from './pages/ActivityLogs';
 import SheetSyncLogs from './pages/SheetSyncLogs';
+import CapiEvents from './pages/CapiEvents';
 import AgentPerformance from './pages/AgentPerformance';
 import Reports from './pages/Reports';
 import './index.css';
@@ -80,6 +81,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path="meta-webhook" element={<MetaWebhook />} />
               <Route path="activity-logs" element={<ActivityLogs />} />
               <Route path="sheet-sync-logs" element={<SheetSyncLogs />} />
+              <Route path="capi-events" element={<CapiEvents />} />
               <Route path="agents" element={<AgentPerformance />} />
               <Route path="reports" element={<Reports />} />
             </Route>

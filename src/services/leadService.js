@@ -63,6 +63,12 @@ export const activityLogService = {
   getActions: () => api.get('/activity-logs/actions').then((r) => r.data),
 };
 
+export const capiService = {
+  getStatus: () => api.get('/capi/status').then((r) => r.data),
+  getEvents: (params) => api.get('/capi/events', { params }).then((r) => r.data),
+  sendTest: (data) => api.post('/capi/test', data).then((r) => r.data),
+};
+
 export const projectService = {
   getAll: () => api.get('/projects').then((r) => r.data),
   create: (data) => api.post('/projects', data).then((r) => r.data),

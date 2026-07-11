@@ -16,6 +16,7 @@ const NAV = [
   { to: '/reports', label: 'Reports', icon: '📈' },
   { to: '/meta-webhook', label: 'Meta Ads', icon: '📡', roles: ['admin', 'manager'] },
   { to: '/sheet-sync-logs', label: 'Sheet Sync Log', icon: '📄', roles: ['admin', 'manager'] },
+  { to: '/capi-events', label: 'CAPI Events', icon: '📡', roles: ['admin'] },
   { to: '/activity-logs', label: 'Activity Logs', icon: '📋', roles: ['admin'] },
 ];
 
