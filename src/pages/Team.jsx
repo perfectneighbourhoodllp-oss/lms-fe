@@ -28,17 +28,19 @@ const ROLE_LABEL = {
   sales: 'Sales',
 };
 
-function AgentFormModal({ agent, onClose, onSubmit, isLoading, currentUserRole }) {
+function AgentFormModal({ agent, onClose, onSubmit, isLoading, currentUserRole, managers = [] }) {
   const isEdit = !!agent;
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm({
     defaultValues: agent
-      ? { name: agent.name, email: agent.email, phone: agent.phone || '', role: agent.role }
-      : { role: 'sales' },
+      ? { name: agent.name, email: agent.email, phone: agent.phone || '', role: agent.role, reportsTo: agent.reportsTo?._id || '' }
+      : { role: 'sales', reportsTo: '' },
   });
+  const selectedRole = watch('role');
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
@@ -89,6 +91,20 @@ function AgentFormModal({ agent, onClose, onSubmit, isLoading, currentUserRole }
                 <option value="manager">Manager</option>
                 {!isEdit && <option value="admin">Admin</option>}
               </select>
+            </div>
+          )}
+
+          {/* Which manager this salesperson reports to — that manager sees their leads */}
+          {currentUserRole === 'admin' && selectedRole === 'sales' && (
+            <div>
+              <label className="label">Reports to (Manager)</label>
+              <select className="input" {...register('reportsTo')}>
+                <option value="">— No manager —</option>
+                {managers.map((m) => (
+                  <option key={m._id} value={m._id}>{m.name}</option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-400 mt-0.5">This manager will see this person's leads.</p>
             </div>
           )}
 
@@ -245,6 +261,7 @@ export default function Team() {
   });
 
   const filtered = roleFilter ? users.filter((u) => u.role === roleFilter) : users;
+  const managers = users.filter((u) => u.role === 'manager' && u.isActive);
 
   const summary = {
     total: users.length,
@@ -370,6 +387,9 @@ export default function Team() {
                       <div className="rounded-lg bg-gray-50 px-2.5 py-2">
                         <p className="text-gray-400">Role</p>
                         <p className="text-gray-700 font-medium mt-0.5">{ROLE_LABEL[u.role] || u.role}</p>
+                        {u.reportsTo?.name && (
+                          <p className="text-[10px] text-gray-400 mt-0.5">↳ {u.reportsTo.name}</p>
+                        )}
                       </div>
                       <div className="rounded-lg bg-gray-50 px-2.5 py-2">
                         <p className="text-gray-400">Leads</p>
@@ -424,6 +444,9 @@ export default function Team() {
                           <span className={`badge ${ROLE_STYLE[u.role] || 'bg-gray-100 text-gray-600'}`}>
                             {ROLE_LABEL[u.role] || u.role}
                           </span>
+                          {u.reportsTo?.name && (
+                            <div className="text-[10px] text-gray-400 mt-0.5">↳ reports to {u.reportsTo.name}</div>
+                          )}
                         </td>
 
                         <td className="td text-gray-500 text-xs">
@@ -465,6 +488,7 @@ export default function Team() {
           onSubmit={(data) => createMutation.mutate(data)}
           isLoading={createMutation.isPending}
           currentUserRole={user?.role}
+          managers={managers}
         />
       )}
 
@@ -475,6 +499,7 @@ export default function Team() {
           onSubmit={(data) => updateMutation.mutate({ id: editAgent._id, ...data })}
           isLoading={updateMutation.isPending}
           currentUserRole={user?.role}
+          managers={managers}
         />
       )}
 
