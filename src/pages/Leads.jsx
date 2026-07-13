@@ -191,6 +191,17 @@ export default function Leads({ leadType = 'live' }) {
     onError: (err) => toast.error(err.response?.data?.message || 'Bulk delete failed'),
   });
 
+  const bulkTypeMutation = useMutation({
+    mutationFn: ({ ids, leadType }) => leadService.bulkSetLeadType(ids, leadType),
+    onSuccess: ({ modifiedCount, leadType }) => {
+      qc.invalidateQueries({ queryKey: ['leads'] });
+      qc.invalidateQueries({ queryKey: ['stats'] });
+      setSelectedIds(new Set());
+      toast.success(`${modifiedCount} lead${modifiedCount !== 1 ? 's' : ''} moved to ${leadType === 'database' ? 'Database' : 'Live'}`);
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Move failed'),
+  });
+
   // Selection handlers
   const toggleSelect = (id) => {
     setSelectedIds((prev) => {
@@ -558,6 +569,18 @@ export default function Leads({ leadType = 'live' }) {
             className="text-xs text-gray-300 hover:text-white"
           >
             Clear
+          </button>
+          <button
+            onClick={() => bulkTypeMutation.mutate({
+              ids: Array.from(selectedIds),
+              leadType: isDatabase ? 'live' : 'database',
+            })}
+            disabled={bulkTypeMutation.isPending}
+            className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium py-1.5 px-3 rounded-full disabled:opacity-50"
+          >
+            {bulkTypeMutation.isPending
+              ? 'Moving…'
+              : isDatabase ? 'Move to Live' : 'Move to Database'}
           </button>
           <button
             onClick={() => setConfirmBulkDelete(true)}
