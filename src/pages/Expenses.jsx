@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { expenseService, projectService, userService } from '../services/leadService';
 import StatCard from '../components/StatCard';
 import ConfirmModal from '../components/ConfirmModal';
+import { isNativeApp, capturePhotoFile } from '../utils/capturePhoto';
 
 const isPdfMime = (m) => m === 'application/pdf';
 const isImageMime = (m) => m?.startsWith('image/');
@@ -29,6 +30,16 @@ function ReceiptUploader({ value, mimeType, onUploaded, onClear }) {
       toast.error(err.response?.data?.message || 'Upload failed');
     } finally {
       setUploading(false);
+    }
+  };
+
+  // Native camera capture (Android/iOS app). Falls back silently on web.
+  const handleCapture = async () => {
+    try {
+      const file = await capturePhotoFile({ source: 'camera' });
+      if (file) await handleFile(file);
+    } catch (err) {
+      toast.error(err?.message || 'Could not open the camera');
     }
   };
 
@@ -73,24 +84,40 @@ function ReceiptUploader({ value, mimeType, onUploaded, onClear }) {
   }
 
   return (
-    <label className="block border-2 border-dashed border-gray-300 rounded-lg p-5 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-colors">
-      <input
-        type="file"
-        accept="image/jpeg,image/png,image/webp,application/pdf"
-        className="hidden"
-        disabled={uploading}
-        onChange={(e) => handleFile(e.target.files?.[0])}
-      />
-      {uploading ? (
-        <div className="text-sm text-blue-600">Uploading...</div>
-      ) : (
-        <>
-          <div className="text-3xl mb-1">📸</div>
-          <p className="text-sm font-medium text-gray-700">Click to upload receipt</p>
-          <p className="text-xs text-gray-400 mt-1">JPG, PNG, WEBP or PDF · max 8 MB</p>
-        </>
+    <div className="space-y-2">
+      {/* Native app: a dedicated Take Photo button using the device camera */}
+      {isNativeApp() && (
+        <button
+          type="button"
+          onClick={handleCapture}
+          disabled={uploading}
+          className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-blue-300 rounded-lg p-4 text-sm font-medium text-blue-700 hover:bg-blue-50 transition-colors disabled:opacity-60"
+        >
+          <span className="text-xl">📷</span> Take Photo of Receipt
+        </button>
       )}
-    </label>
+
+      <label className="block border-2 border-dashed border-gray-300 rounded-lg p-5 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-colors">
+        <input
+          type="file"
+          accept="image/jpeg,image/png,image/webp,application/pdf"
+          className="hidden"
+          disabled={uploading}
+          onChange={(e) => handleFile(e.target.files?.[0])}
+        />
+        {uploading ? (
+          <div className="text-sm text-blue-600">Uploading...</div>
+        ) : (
+          <>
+            <div className="text-3xl mb-1">📸</div>
+            <p className="text-sm font-medium text-gray-700">
+              {isNativeApp() ? 'Or choose from files' : 'Click to upload receipt'}
+            </p>
+            <p className="text-xs text-gray-400 mt-1">JPG, PNG, WEBP or PDF · max 8 MB</p>
+          </>
+        )}
+      </label>
+    </div>
   );
 }
 

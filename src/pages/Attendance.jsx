@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { attendanceService, userService } from '../services/leadService';
+import { isNativeApp, capturePhotoFile } from '../utils/capturePhoto';
 
 /* ─── helpers ────────────────────────────────────────────── */
 const fmtTime = (d) =>
@@ -249,6 +250,16 @@ function PunchCard() {
     }
   };
 
+  // Native front-camera capture for the selfie (Android/iOS app).
+  const handleSelfieCapture = async () => {
+    try {
+      const file = await capturePhotoFile({ source: 'camera', direction: 'front' });
+      if (file) await handleSelfie(file);
+    } catch (err) {
+      toast.error(err?.message || 'Could not open the camera');
+    }
+  };
+
   // isCheckIn → include the chosen workMode (check-out reuses the day's stored mode).
   const punch = async (mutation, isCheckIn) => {
     setBusy(true);
@@ -352,6 +363,15 @@ function PunchCard() {
                     Remove
                   </button>
                 </div>
+              ) : isNativeApp() ? (
+                <button
+                  type="button"
+                  onClick={handleSelfieCapture}
+                  disabled={uploading}
+                  className="w-full flex items-center justify-center gap-2 border-2 border-dashed border-blue-300 rounded-lg p-4 text-sm font-medium text-blue-700 hover:bg-blue-50 transition-colors disabled:opacity-60"
+                >
+                  {uploading ? 'Uploading…' : <><span className="text-lg">🤳</span> Take a Selfie</>}
+                </button>
               ) : (
                 <label className="block border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/30 transition-colors">
                   <input
