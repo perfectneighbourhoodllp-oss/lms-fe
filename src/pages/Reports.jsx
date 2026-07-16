@@ -14,6 +14,17 @@ const ymd = (d) => {
 function rangeFor(period) {
   const now = new Date();
   if (period === 'today') return { from: ymd(now), to: ymd(now) };
+  if (period === 'yesterday') {
+    const y = new Date(now);
+    y.setDate(now.getDate() - 1);
+    return { from: ymd(y), to: ymd(y) };
+  }
+  if (period === 'last7') {
+    // Rolling 7-day window ending today (today and the 6 days before it).
+    const start = new Date(now);
+    start.setDate(now.getDate() - 6);
+    return { from: ymd(start), to: ymd(now) };
+  }
   if (period === 'week') {
     const day = now.getDay(); // 0 = Sun
     const monday = new Date(now);
@@ -36,6 +47,8 @@ const fmtMins = (m) => {
 
 const PERIODS = [
   { key: 'today', label: 'Daily (today)' },
+  { key: 'yesterday', label: 'Yesterday' },
+  { key: 'last7', label: 'Last 7 days' },
   { key: 'week', label: 'Weekly (this week)' },
   { key: 'month', label: 'Monthly (this month)' },
   { key: 'custom', label: 'Custom range' },
