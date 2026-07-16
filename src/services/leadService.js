@@ -70,6 +70,12 @@ export const capiService = {
   sendTest: (data) => api.post('/capi/test', data).then((r) => r.data),
 };
 
+export const whatsappService = {
+  getHandoffs: () => api.get('/whatsapp/handoffs').then((r) => r.data),
+  reply: (id, text) => api.post(`/whatsapp/leads/${id}/reply`, { text }).then((r) => r.data),
+  start: (id) => api.post(`/whatsapp/leads/${id}/start`).then((r) => r.data),
+};
+
 export const projectService = {
   getAll: () => api.get('/projects').then((r) => r.data),
   create: (data) => api.post('/projects', data).then((r) => r.data),

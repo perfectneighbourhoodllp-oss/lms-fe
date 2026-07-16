@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import { STATUSES, STATUS_STYLE, TAGS } from './LeadTable';
-import { leadService } from '../services/leadService';
+import { leadService, whatsappService } from '../services/leadService';
 
 const waLink = (phone) => `https://wa.me/${phone.replace(/\D/g, '')}`;
 
@@ -13,6 +14,74 @@ const fmtDateTime = (d) => {
     date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
   );
 };
+
+/* ─── WhatsApp conversation (visible in the lead drawer for agents) ─── */
+function WhatsAppThread({ lead }) {
+  const qc = useQueryClient();
+  const [text, setText] = useState('');
+  const wa = lead.wa || {};
+  const msgs = wa.messages || [];
+  const withinWindow = wa.lastInboundAt && (Date.now() - new Date(wa.lastInboundAt).getTime() < 24 * 60 * 60 * 1000);
+
+  const replyM = useMutation({
+    mutationFn: (t) => whatsappService.reply(lead._id, t),
+    onSuccess: () => {
+      setText('');
+      qc.invalidateQueries({ queryKey: ['leads'] });
+      qc.invalidateQueries({ queryKey: ['lead-focus'] });
+      toast.success('Sent on WhatsApp');
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Send failed'),
+  });
+
+  // Only show for leads the WhatsApp bot has touched.
+  if (!wa.enabled && msgs.length === 0) return null;
+
+  return (
+    <div>
+      <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2 flex items-center gap-2">
+        WhatsApp
+        {wa.stage && <span className="badge bg-green-50 text-green-700 lowercase">{wa.stage}</span>}
+      </p>
+      <div className="bg-gray-50 border border-gray-100 rounded-lg max-h-60 overflow-y-auto p-3 space-y-2">
+        {msgs.length === 0 ? (
+          <p className="text-xs text-gray-400 text-center py-2">Conversation starting…</p>
+        ) : (
+          msgs.map((m, i) => (
+            <div key={i} className={`flex ${m.role === 'user' ? 'justify-start' : 'justify-end'}`}>
+              <div className={`max-w-[78%] rounded-lg px-2.5 py-1.5 text-sm ${m.role === 'user' ? 'bg-white border border-gray-200 text-gray-800' : 'bg-green-600 text-white'}`}>
+                {m.text}
+                <div className={`text-[10px] mt-0.5 ${m.role === 'user' ? 'text-gray-400' : 'text-green-100'}`}>{fmtDateTime(m.at)}</div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+      <div className="flex gap-2 mt-2">
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter' && text.trim() && withinWindow) replyM.mutate(text.trim()); }}
+          placeholder={withinWindow ? 'Reply on WhatsApp…' : 'Outside 24h window — lead must message first'}
+          disabled={!withinWindow || replyM.isPending}
+          className="input py-2 text-sm flex-1"
+        />
+        <button
+          onClick={() => text.trim() && replyM.mutate(text.trim())}
+          disabled={!withinWindow || replyM.isPending || !text.trim()}
+          className="btn-primary text-sm py-2 px-3"
+        >
+          {replyM.isPending ? '…' : 'Send'}
+        </button>
+      </div>
+      {!withinWindow && (
+        <p className="text-[11px] text-gray-400 mt-1">
+          Free-form replies allowed only within 24h of the lead's last WhatsApp message.
+        </p>
+      )}
+    </div>
+  );
+}
 
 export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemark, onAccept, accepting, onReject, rejecting, currentUserId, users, canAssign, canDelete }) {
   const [status, setStatus] = useState(lead.status);
@@ -447,6 +516,9 @@ export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemar
               </select>
             </div>
           )}
+
+          {/* WhatsApp conversation — only renders when the bot has engaged this lead */}
+          <WhatsAppThread lead={lead} />
 
           {/* Remarks — kept directly above Notes for quick logging */}
           <div>
