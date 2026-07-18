@@ -264,9 +264,29 @@ function ProjectFormModal({ project, onClose, onSubmit, isLoading }) {
       : { type: 'Residential' },
   });
 
+  // Per-project WhatsApp qualification options (configuration + budget bands).
+  // Configs are edited as a comma-separated string; bands as label + ₹L rows.
+  const [configs, setConfigs] = useState((project?.waConfig?.configurations || []).join(', '));
+  const [bands, setBands] = useState(
+    (project?.waConfig?.budgetBands || []).map((b) => ({ label: b.label, valueLakh: String(b.valueLakh) }))
+  );
+
+  const addBand = () => setBands((b) => [...b, { label: '', valueLakh: '' }]);
+  const updateBand = (i, key, val) =>
+    setBands((b) => b.map((row, idx) => (idx === i ? { ...row, [key]: val } : row)));
+  const removeBand = (i) => setBands((b) => b.filter((_, idx) => idx !== i));
+
+  const submit = (data) => {
+    const configurations = configs.split(',').map((s) => s.trim()).filter(Boolean);
+    const budgetBands = bands
+      .map((b) => ({ label: b.label.trim(), valueLakh: Number(b.valueLakh) }))
+      .filter((b) => b.label && Number.isFinite(b.valueLakh));
+    onSubmit({ ...data, waConfig: { configurations, budgetBands } });
+  };
+
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="card w-full max-w-md">
+      <div className="card w-full max-w-md max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <h2 className="font-semibold text-base text-gray-800">
             {project ? 'Edit Project' : 'New Project'}
@@ -274,7 +294,7 @@ function ProjectFormModal({ project, onClose, onSubmit, isLoading }) {
           <button onClick={onClose} className="btn-ghost text-lg px-2 py-0.5">×</button>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="p-5 space-y-3">
+        <form onSubmit={handleSubmit(submit)} className="p-5 space-y-3 overflow-y-auto">
           <div>
             <label className="label">Project Name *</label>
             <input
@@ -306,6 +326,67 @@ function ProjectFormModal({ project, onClose, onSubmit, isLoading }) {
           <div>
             <label className="label">Notes</label>
             <textarea className="input resize-none" rows={2} {...register('notes')} />
+          </div>
+
+          {/* WhatsApp qualification options */}
+          <div className="border-t border-gray-100 pt-3 space-y-3">
+            <div>
+              <p className="text-sm font-semibold text-gray-700">💬 WhatsApp qualification</p>
+              <p className="text-[11px] text-gray-400 mt-0.5">
+                Options the WhatsApp bot offers leads for this project. Leave blank to use defaults.
+              </p>
+            </div>
+
+            <div>
+              <label className="label">Configurations</label>
+              <input
+                className="input"
+                placeholder="e.g. 2 BHK, 3 BHK, Plot"
+                value={configs}
+                onChange={(e) => setConfigs(e.target.value)}
+              />
+              <p className="text-[11px] text-gray-400 mt-0.5">Comma-separated. More than 3 shows as a list on WhatsApp.</p>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="label mb-0">Budget bands</label>
+                <button type="button" onClick={addBand} className="text-xs text-blue-600 hover:underline">
+                  + Add band
+                </button>
+              </div>
+              {bands.length === 0 && (
+                <p className="text-[11px] text-gray-400">No bands — the default ₹ ranges will be used.</p>
+              )}
+              <div className="space-y-2">
+                {bands.map((b, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <input
+                      className="input flex-1"
+                      placeholder="Label, e.g. ₹1 – 2 Cr"
+                      value={b.label}
+                      onChange={(e) => updateBand(i, 'label', e.target.value)}
+                    />
+                    <input
+                      type="number"
+                      className="input w-24"
+                      placeholder="₹L"
+                      value={b.valueLakh}
+                      onChange={(e) => updateBand(i, 'valueLakh', e.target.value)}
+                      aria-label="Value in lakh"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeBand(i)}
+                      className="btn-ghost text-lg px-2 text-gray-400 hover:text-red-500"
+                      aria-label="Remove band"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
           <div className="flex gap-3 pt-1">
