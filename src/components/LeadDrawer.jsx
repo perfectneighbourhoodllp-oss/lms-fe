@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { STATUSES, STATUS_STYLE, TAGS } from './LeadTable';
-import { leadService } from '../services/leadService';
+import { leadService, projectService } from '../services/leadService';
 
 const waLink = (phone) => `https://wa.me/${phone.replace(/\D/g, '')}`;
 
@@ -32,6 +32,7 @@ export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemar
   const [notes, setNotes] = useState(lead.notes || '');
   const [tags, setTags] = useState(lead.tags || []);
   const [assignedTo, setAssignedTo] = useState(lead.assignedTo?._id || '');
+  const [project, setProject] = useState(lead.project?._id || '');
   const [remarkText, setRemarkText] = useState('');
   const [submittingRemark, setSubmittingRemark] = useState(false);
 
@@ -71,6 +72,13 @@ export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemar
     queryFn: () => leadService.getRelated(lead._id),
   });
 
+  // Projects list for the admin/manager project selector (reuses the cached ['projects']).
+  const { data: projects = [] } = useQuery({
+    queryKey: ['projects'],
+    queryFn: projectService.getAll,
+    enabled: canAssign,
+  });
+
   useEffect(() => {
     const handleKey = (e) => {
       if (e.key === 'Escape') onClose();
@@ -87,6 +95,7 @@ export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemar
     setNotes(lead.notes || '');
     setTags(lead.tags || []);
     setAssignedTo(lead.assignedTo?._id || '');
+    setProject(lead.project?._id || '');
     setRemarkText('');
     setCustomFields(Object.entries(lead.customFields || {}).map(([key, value]) => ({ key, value: String(value) })));
   }, [lead._id]);
@@ -108,6 +117,7 @@ export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemar
       notes,
       tags,
       assignedTo: assignedTo || null,
+      project: project || null,
       customFields: cf,
     });
   };
@@ -435,6 +445,26 @@ export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemar
             />
             <p className="text-xs text-gray-400 mt-1">You'll get an email reminder at this time.</p>
           </div>
+
+          {canAssign && (
+            <div>
+              <label className="label">
+                Project
+                {!lead.project && <span className="text-orange-500 ml-1 text-[11px]">· not set</span>}
+              </label>
+              <select value={project} onChange={(e) => setProject(e.target.value)} className="input py-2 text-sm">
+                <option value="">— No project —</option>
+                {projects.map((p) => (
+                  <option key={p._id} value={p._id}>{p.name}</option>
+                ))}
+              </select>
+              {!lead.project && (
+                <p className="text-[11px] text-gray-400 mt-0.5">
+                  Assigning a project auto-routes an unassigned lead to that project's agent.
+                </p>
+              )}
+            </div>
+          )}
 
           {canAssign && users && (
             <div>
