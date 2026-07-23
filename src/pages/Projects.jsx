@@ -13,6 +13,13 @@ const projectService = {
   create: (data) => api.post('/projects', data).then((r) => r.data),
   update: (id, data) => api.put(`/projects/${id}`, data).then((r) => r.data),
   remove: (id) => api.delete(`/projects/${id}`).then((r) => r.data),
+  uploadImage: (file) => {
+    const form = new FormData();
+    form.append('file', file);
+    return api
+      .post('/projects/upload-image', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+      .then((r) => r.data);
+  },
   assignAgents: (id, agentIds, agentWeights) =>
     api
       .put(`/projects/${id}/assign-agents`, { agentIds, agentWeights })
@@ -260,7 +267,7 @@ function AssignManagersPanel({ project, allUsers, onSave, onClose }) {
 function ProjectFormModal({ project, onClose, onSubmit, isLoading }) {
   const { register, handleSubmit, formState: { errors } } = useForm({
     defaultValues: project
-      ? { name: project.name, developer: project.developer, location: project.location, type: project.type, notes: project.notes }
+      ? { name: project.name, developer: project.developer, location: project.location, type: project.type, notes: project.notes, link: project.link }
       : { type: 'Residential' },
   });
 
@@ -276,12 +283,33 @@ function ProjectFormModal({ project, onClose, onSubmit, isLoading }) {
     setBands((b) => b.map((row, idx) => (idx === i ? { ...row, [key]: val } : row)));
   const removeBand = (i) => setBands((b) => b.filter((_, idx) => idx !== i));
 
+  // Project images (Cloudinary URLs) — uploaded immediately, stored as URLs on save.
+  const [images, setImages] = useState(project?.images || []);
+  const [uploading, setUploading] = useState(false);
+  const handleImageUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setUploading(true);
+    try {
+      for (const f of files) {
+        const { url } = await projectService.uploadImage(f);
+        if (url) setImages((prev) => [...prev, url]);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Image upload failed');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+  const removeImage = (i) => setImages((prev) => prev.filter((_, idx) => idx !== i));
+
   const submit = (data) => {
     const configurations = configs.split(',').map((s) => s.trim()).filter(Boolean);
     const budgetBands = bands
       .map((b) => ({ label: b.label.trim(), valueLakh: Number(b.valueLakh) }))
       .filter((b) => b.label && Number.isFinite(b.valueLakh));
-    onSubmit({ ...data, waConfig: { configurations, budgetBands } });
+    onSubmit({ ...data, images, waConfig: { configurations, budgetBands } });
   };
 
   return (
@@ -321,6 +349,44 @@ function ProjectFormModal({ project, onClose, onSubmit, isLoading }) {
           <div>
             <label className="label">Location</label>
             <input className="input" placeholder="e.g. Whitefield, Bangalore" {...register('location')} />
+          </div>
+
+          <div>
+            <label className="label">Project link</label>
+            <input className="input" placeholder="https://… (brochure / details page)" {...register('link')} />
+            <p className="text-[11px] text-gray-400 mt-0.5">Shared with the lead on WhatsApp at handoff, if set.</p>
+          </div>
+
+          <div>
+            <label className="label">Project images</label>
+            {images.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {images.map((url, i) => (
+                  <div key={url} className="relative">
+                    <img src={url} alt="" className="w-16 h-16 object-cover rounded-lg border border-gray-200" />
+                    <button
+                      type="button"
+                      onClick={() => removeImage(i)}
+                      className="absolute -top-1.5 -right-1.5 bg-white border border-gray-300 rounded-full w-5 h-5 text-xs text-gray-500 hover:text-red-500 shadow-sm"
+                      aria-label="Remove image"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+              onChange={handleImageUpload}
+              disabled={uploading}
+              className="text-xs text-gray-600 file:mr-2 file:py-1 file:px-3 file:rounded-md file:border-0 file:bg-gray-100 file:text-gray-700 hover:file:bg-gray-200"
+            />
+            <p className="text-[11px] text-gray-400 mt-0.5">
+              {uploading ? 'Uploading…' : `Up to ${5} shared on WhatsApp at handoff.`}
+            </p>
           </div>
 
           <div>
