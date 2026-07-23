@@ -19,6 +19,7 @@ import MetaWebhook from './pages/MetaWebhook';
 import ActivityLogs from './pages/ActivityLogs';
 import SheetSyncLogs from './pages/SheetSyncLogs';
 import CapiEvents from './pages/CapiEvents';
+import WhatsAppInbox from './pages/WhatsAppInbox';
 import AgentPerformance from './pages/AgentPerformance';
 import Reports from './pages/Reports';
 import './index.css';
@@ -82,6 +83,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path="activity-logs" element={<ActivityLogs />} />
               <Route path="sheet-sync-logs" element={<SheetSyncLogs />} />
               <Route path="capi-events" element={<CapiEvents />} />
+              <Route path="whatsapp-inbox" element={<WhatsAppInbox />} />
               <Route path="agents" element={<AgentPerformance />} />
               <Route path="reports" element={<Reports />} />
             </Route>

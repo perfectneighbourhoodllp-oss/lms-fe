@@ -70,6 +70,21 @@ export const capiService = {
   sendTest: (data) => api.post('/capi/test', data).then((r) => r.data),
 };
 
+export const whatsappService = {
+  getInbox: () => api.get('/whatsapp/inbox').then((r) => r.data),
+  reply: (id, text) => api.post(`/whatsapp/leads/${id}/reply`, { text }).then((r) => r.data),
+  sendMedia: (id, file, caption) => {
+    const form = new FormData();
+    form.append('file', file);
+    if (caption) form.append('caption', caption);
+    return api
+      .post(`/whatsapp/leads/${id}/send-media`, form, { headers: { 'Content-Type': 'multipart/form-data' } })
+      .then((r) => r.data);
+  },
+  start: (id) => api.post(`/whatsapp/leads/${id}/start`).then((r) => r.data),
+  takeOver: (id) => api.post(`/whatsapp/leads/${id}/takeover`).then((r) => r.data),
+};
+
 export const projectService = {
   getAll: () => api.get('/projects').then((r) => r.data),
   create: (data) => api.post('/projects', data).then((r) => r.data),

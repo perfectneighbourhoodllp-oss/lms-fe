@@ -96,12 +96,16 @@ export default function Leads({ leadType = 'live' }) {
   // If a lead is selected but not in the current page (e.g. opened from a notification),
   // fetch it directly so the drawer can render.
   const selectedInPage = selectedLeadId ? leads.find((l) => l._id === selectedLeadId) : null;
+  // Always fetch the freshest single lead while the drawer is open, and poll it
+  // so the live WhatsApp conversation (updated in the background) stays current.
   const { data: focusedLead } = useQuery({
     queryKey: ['lead-focus', selectedLeadId],
     queryFn: () => leadService.getOne(selectedLeadId),
-    enabled: Boolean(selectedLeadId && !selectedInPage),
+    enabled: Boolean(selectedLeadId),
+    refetchInterval: selectedLeadId ? 12_000 : false,
   });
-  const drawerLead = selectedInPage || focusedLead;
+  // Show the list snapshot instantly, then prefer the fresh fetched copy.
+  const drawerLead = focusedLead || selectedInPage;
 
   const { data: users = [] } = useQuery({
     queryKey: ['users'],

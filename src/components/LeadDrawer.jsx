@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
+import toast from 'react-hot-toast';
 import { STATUSES, STATUS_STYLE, TAGS } from './LeadTable';
-import { leadService, projectService } from '../services/leadService';
+import { leadService, whatsappService, projectService } from '../services/leadService';
 
 const waLink = (phone) => `https://wa.me/${phone.replace(/\D/g, '')}`;
 
@@ -13,6 +14,126 @@ const fmtDateTime = (d) => {
     date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })
   );
 };
+
+// WhatsApp qualification status → how it reads to the agent working the lead.
+// `live` = the bot is still actively talking to the lead.
+const WA_STATUS = {
+  new:        { short: 'Engaging',      label: 'Bot engaging — awaiting the lead’s opt-in', live: true,  chip: 'bg-amber-100 text-amber-700', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+  engaging:   { short: 'Engaging',      label: 'Bot engaging — awaiting the lead’s opt-in', live: true,  chip: 'bg-amber-100 text-amber-700', cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+  qualifying: { short: 'Qualifying',    label: 'Qualification in progress', live: true,  chip: 'bg-blue-100 text-blue-700',  cls: 'bg-blue-50 text-blue-700 border-blue-200' },
+  handoff:    { short: 'Handed to you', label: 'Qualified & handed to you', live: false, chip: 'bg-green-100 text-green-700', cls: 'bg-green-50 text-green-700 border-green-200' },
+  dormant:    { short: 'Opted out',     label: 'Lead opted out of WhatsApp', live: false, chip: 'bg-gray-200 text-gray-500',  cls: 'bg-gray-100 text-gray-500 border-gray-200' },
+};
+const WA_SLOT_LABEL = { configuration: 'Configuration', budgetLakh: 'Budget', timeline: 'Timeline', intent: 'Intent', locationPref: 'Location' };
+
+/* ─── WhatsApp conversation (visible in the lead drawer for agents) ─── */
+function WhatsAppThread({ lead }) {
+  const qc = useQueryClient();
+  const [text, setText] = useState('');
+  const wa = lead.wa || {};
+  const msgs = wa.messages || [];
+  const withinWindow = wa.lastInboundAt && (Date.now() - new Date(wa.lastInboundAt).getTime() < 24 * 60 * 60 * 1000);
+
+  const replyM = useMutation({
+    mutationFn: (t) => whatsappService.reply(lead._id, t),
+    onSuccess: () => {
+      setText('');
+      qc.invalidateQueries({ queryKey: ['leads'] });
+      qc.invalidateQueries({ queryKey: ['lead-focus'] });
+      toast.success('Sent on WhatsApp');
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Send failed'),
+  });
+
+  const takeOverM = useMutation({
+    mutationFn: () => whatsappService.takeOver(lead._id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['leads'] });
+      qc.invalidateQueries({ queryKey: ['lead-focus'] });
+      toast.success('You’ve taken over — the bot has stopped.');
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Could not take over'),
+  });
+
+  // Only show for leads the WhatsApp bot has touched.
+  if (!wa.enabled && msgs.length === 0) return null;
+
+  return (
+    <div>
+      <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">WhatsApp</p>
+      {(() => {
+        const st = WA_STATUS[wa.stage] || WA_STATUS.new;
+        const pending = wa.pendingQuestion ? (WA_SLOT_LABEL[wa.pendingQuestion] || wa.pendingQuestion) : null;
+        return (
+          <div className={`rounded-lg border px-3 py-2 mb-2 text-xs ${st.cls}`}>
+            <div className="flex items-center gap-1.5 font-semibold">
+              <span className={`w-2 h-2 rounded-full bg-current ${st.live ? 'animate-pulse' : 'opacity-40'}`} />
+              {st.label}
+            </div>
+            {st.live && (
+              <div className="mt-1.5 flex items-start justify-between gap-2">
+                <p className="opacity-90">
+                  ⚠️ The bot is still chatting with this lead{pending ? ` — waiting on: ${pending}` : ''}. Your replies go out alongside it.
+                </p>
+                <button
+                  onClick={() => takeOverM.mutate()}
+                  disabled={takeOverM.isPending}
+                  title="Stop the bot and take over this conversation"
+                  className="flex-shrink-0 text-[11px] font-semibold bg-white rounded-md px-2 py-1 shadow-sm hover:bg-gray-50 disabled:opacity-60"
+                >
+                  {takeOverM.isPending ? '…' : 'Take over'}
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      })()}
+      <div className="bg-gray-50 border border-gray-100 rounded-lg max-h-60 overflow-y-auto p-3 space-y-2">
+        {msgs.length === 0 ? (
+          <p className="text-xs text-gray-400 text-center py-2">Conversation starting…</p>
+        ) : (
+          msgs.map((m, i) => (
+            <div key={i} className={`flex ${m.role === 'user' ? 'justify-start' : 'justify-end'}`}>
+              <div className={`max-w-[78%] rounded-lg px-2.5 py-1.5 text-sm ${m.role === 'user' ? 'bg-white border border-gray-200 text-gray-800' : 'bg-green-600 text-white'}`}>
+                {m.mediaUrl && m.mediaType === 'image' ? (
+                  <a href={m.mediaUrl} target="_blank" rel="noreferrer">
+                    <img src={m.mediaUrl} alt="" className="rounded max-w-[160px] max-h-[160px] object-cover" />
+                  </a>
+                ) : m.mediaUrl && m.mediaType === 'document' ? (
+                  <a href={m.mediaUrl} target="_blank" rel="noreferrer" className="underline break-all">📄 {m.fileName || 'Document'}</a>
+                ) : null}
+                {(!m.mediaUrl || m.text) && <div className={m.mediaUrl ? 'mt-1' : ''}>{m.text}</div>}
+                <div className={`text-[10px] mt-0.5 ${m.role === 'user' ? 'text-gray-400' : 'text-green-100'}`}>{fmtDateTime(m.at)}</div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+      <div className="flex gap-2 mt-2">
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter' && text.trim() && withinWindow) replyM.mutate(text.trim()); }}
+          placeholder={withinWindow ? 'Reply on WhatsApp…' : 'Outside 24h window — lead must message first'}
+          disabled={!withinWindow || replyM.isPending}
+          className="input py-2 text-sm flex-1"
+        />
+        <button
+          onClick={() => text.trim() && replyM.mutate(text.trim())}
+          disabled={!withinWindow || replyM.isPending || !text.trim()}
+          className="btn-primary text-sm py-2 px-3"
+        >
+          {replyM.isPending ? '…' : 'Send'}
+        </button>
+      </div>
+      {!withinWindow && (
+        <p className="text-[11px] text-gray-400 mt-1">
+          Free-form replies allowed only within 24h of the lead's last WhatsApp message.
+        </p>
+      )}
+    </div>
+  );
+}
 
 export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemark, onAccept, accepting, onReject, rejecting, currentUserId, users, canAssign, canDelete }) {
   const [status, setStatus] = useState(lead.status);
@@ -159,6 +280,10 @@ export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemar
               <span className={`badge ${STATUS_STYLE[lead.status] || 'bg-gray-100 text-gray-600'}`}>
                 {lead.status}
               </span>
+              {lead.wa?.enabled && (() => {
+                const st = WA_STATUS[lead.wa.stage] || WA_STATUS.new;
+                return <span className={`badge ${st.chip}`} title={st.label}>💬 {st.short}</span>;
+              })()}
               {lead.project?.name && (
                 <span className="text-xs text-gray-500 truncate">{lead.project.name}</span>
               )}
@@ -477,6 +602,9 @@ export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemar
               </select>
             </div>
           )}
+
+          {/* WhatsApp conversation — only renders when the bot has engaged this lead */}
+          <WhatsAppThread lead={lead} />
 
           {/* Remarks — kept directly above Notes for quick logging */}
           <div>

@@ -4,7 +4,7 @@ import { leadService } from '../services/leadService';
 const logContact = (id, channel) => leadService.logContact(id, channel).catch(() => {});
 
 export const STATUSES = ['New', 'Called', 'RNR', 'Follow Up', 'Interested', 'Webinar', 'Site Visit', 'Cross Selling', 'Closed', 'Not Interested', 'Dead'];
-export const SOURCES = ['Instagram', 'Ads', 'Referral', 'Walk-in', 'Website', 'Database', 'Other'];
+export const SOURCES = ['Instagram', 'Ads', 'Referral', 'Walk-in', 'Website', 'WhatsApp', 'Database', 'Other'];
 // Keep in sync with TAGS in lms-be/models/Lead.js
 export const TAGS = ['Low Budget', 'Budget Mismatch', 'Wants Different Config', 'Location Mismatch', 'Resale Only', 'Rental Only', 'Not Ready - Timeline', 'Investor', 'NRI', 'Loan Required'];
 
