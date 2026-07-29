@@ -137,6 +137,7 @@ function WhatsAppThread({ lead }) {
 
 export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemark, onAccept, accepting, onReject, rejecting, currentUserId, users, canAssign, canDelete }) {
   const [status, setStatus] = useState(lead.status);
+  const [name, setName] = useState(lead.name || ''); // admin-only rename
   const [qualification, setQualification] = useState(lead.qualification || '');
   // Format for datetime-local input: YYYY-MM-DDTHH:mm in LOCAL time
   const toDateTimeLocal = (d) => {
@@ -211,6 +212,7 @@ export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemar
   // Sync state when a different lead is opened
   useEffect(() => {
     setStatus(lead.status);
+    setName(lead.name || '');
     setQualification(lead.qualification || '');
     setFollowUpDate(toDateTimeLocal(lead.followUpDate));
     setNotes(lead.notes || '');
@@ -232,6 +234,7 @@ export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemar
     const followUpIso = followUpDate ? new Date(followUpDate).toISOString() : null;
 
     onSave(lead._id, {
+      ...(canDelete ? { name: name.trim() || lead.name } : {}),
       status,
       qualification: qualification || null,
       followUpDate: followUpIso,
@@ -274,7 +277,17 @@ export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemar
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-gray-100 px-5 py-4 flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-semibold text-gray-900 truncate">{lead.name}</h2>
+            {canDelete ? (
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                aria-label="Lead name"
+                title="Edit name — remember to Save"
+                className="text-lg font-semibold text-gray-900 w-full bg-transparent border-b border-transparent hover:border-gray-200 focus:border-blue-400 focus:outline-none -ml-0.5 px-0.5"
+              />
+            ) : (
+              <h2 className="text-lg font-semibold text-gray-900 truncate">{lead.name}</h2>
+            )}
             <p className="text-xs text-gray-400 font-mono mt-0.5">{lead.phone}</p>
             <div className="flex items-center gap-2 mt-2">
               <span className={`badge ${STATUS_STYLE[lead.status] || 'bg-gray-100 text-gray-600'}`}>
