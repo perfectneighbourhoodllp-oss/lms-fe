@@ -10,6 +10,14 @@ import AddLeadModal from '../components/AddLeadModal';
 import BulkUploadModal from '../components/BulkUploadModal';
 import ConfirmModal from '../components/ConfirmModal';
 
+// Status filter ordering only — surface the most-used statuses first. Does NOT
+// affect the edit-status picker or the Add-Lead form (those keep STATUSES order).
+const FILTER_STATUS_PINNED = ['Follow Up', 'Interested', 'Site Visit'];
+const FILTER_STATUSES = [
+  ...FILTER_STATUS_PINNED,
+  ...STATUSES.filter((s) => !FILTER_STATUS_PINNED.includes(s)),
+];
+
 export default function Leads({ leadType = 'live' }) {
   const isDatabase = leadType === 'database';
   const { user } = useAuth();
@@ -329,7 +337,7 @@ export default function Leads({ leadType = 'live' }) {
           onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
         >
           <option value="">All Statuses</option>
-          {STATUSES.map((s) => <option key={s}>{s}</option>)}
+          {FILTER_STATUSES.map((s) => <option key={s}>{s}</option>)}
         </select>
         <select
           className="input w-full sm:w-36"
