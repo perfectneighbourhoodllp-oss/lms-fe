@@ -152,6 +152,7 @@ function LeadCard({ lead, onSelect, currentUserId, onAccept, onReject, accepting
           <span className={`badge ${STATUS_STYLE[lead.status] || 'bg-gray-100 text-gray-600'}`}>
             {lead.status}
           </span>
+          {lead.siteVisits?.length > 0 && <span className="badge bg-emerald-100 text-emerald-700" title={`${lead.siteVisits.length} site visit(s)`}>📍 Visited</span>}
           {overdue && <span className="badge bg-red-100 text-red-700">Late</span>}
           {lead.leadType === 'database' && <span className="badge bg-gray-100 text-gray-500" title="Bulk-uploaded database lead">DB</span>}
           <AcceptControl lead={lead} currentUserId={currentUserId} onAccept={onAccept} onReject={onReject} accepting={accepting} rejecting={rejecting} />
@@ -337,6 +338,7 @@ export default function LeadTable({
                     <span className={`badge ${STATUS_STYLE[lead.status] || 'bg-gray-100 text-gray-600'}`}>
                       {lead.status}
                     </span>
+                    {lead.siteVisits?.length > 0 && <span className="badge bg-emerald-100 text-emerald-700 ml-1" title={`${lead.siteVisits.length} site visit(s)`}>📍 Visited</span>}
                     {overdue && <span className="badge bg-red-100 text-red-700 ml-1">Overdue</span>}
                     {lead.leadType === 'database' && <span className="badge bg-gray-100 text-gray-500 ml-1" title="Bulk-uploaded database lead">DB</span>}
                     <AcceptControl lead={lead} currentUserId={currentUserId} onAccept={onAccept} onReject={onReject} accepting={accepting} rejecting={rejecting} className="ml-1" />

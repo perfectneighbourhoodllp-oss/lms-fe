@@ -177,7 +177,7 @@ export default function Reports() {
   const agents = isSales ? [] : (data?.agents || []);
   const totals =
     (isSales ? data?.agent : data?.totals) ||
-    { leadsAssigned: 0, leadsCalled: 0, leadsWhatsapped: 0, followUpsDone: 0, closed: 0 };
+    { leadsAssigned: 0, leadsCalled: 0, leadsWhatsapped: 0, followUpsDone: 0, siteVisitsDone: 0, closed: 0 };
 
   return (
     <div className="p-4 sm:p-6 max-w-6xl mx-auto space-y-5">
@@ -225,18 +225,19 @@ export default function Reports() {
       </div>
 
       {/* Totals strip */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
         {[
           { label: 'Leads Assigned', value: totals.leadsAssigned, icon: '👥' },
-          { label: 'Leads Called', value: totals.leadsCalled, icon: '📞' },
-          { label: 'Leads WhatsApp’d', value: totals.leadsWhatsapped, icon: '🟢' },
-          { label: 'Follow-ups Done', value: totals.followUpsDone, icon: '📝' },
+          { label: 'Leads Called', value: totals.leadsCalled, icon: '📞', hint: 'Distinct leads called per day, summed over the range' },
+          { label: 'Leads WhatsApp’d', value: totals.leadsWhatsapped, icon: '🟢', hint: 'Distinct leads WhatsApp’d per day, summed over the range' },
+          { label: 'Total Remarks', value: totals.followUpsDone, icon: '📝', hint: 'Every remark added (not deduped by lead)' },
+          { label: 'Site Visits', value: totals.siteVisitsDone, icon: '📍', hint: 'Site visits marked done in this range' },
           { label: 'Avg 1st Contact', value: fmtMins(totals.avgFirstContactMins), icon: '⏱' },
           { label: 'Closed', value: totals.closed, icon: '✅' },
         ].map((s) => (
           <div key={s.label} className="card">
             <div className="card-body py-4">
-              <div className="text-xs text-gray-400">{s.icon} {s.label}</div>
+              <div className="text-xs text-gray-400" title={s.hint || ''}>{s.icon} {s.label}</div>
               <div className="text-2xl font-bold text-gray-800 mt-1">{s.value}</div>
             </div>
           </div>
@@ -262,9 +263,10 @@ export default function Reports() {
                   <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
                     <th className="py-2 pr-4">Agent</th>
                     <th className="py-2 pr-4 text-right">Leads Assigned</th>
-                    <th className="py-2 pr-4 text-right">Leads Called</th>
-                    <th className="py-2 pr-4 text-right">Leads WhatsApp’d</th>
-                    <th className="py-2 pr-4 text-right">Follow-ups Done</th>
+                    <th className="py-2 pr-4 text-right" title="Distinct leads called per day, summed over the range">Leads Called</th>
+                    <th className="py-2 pr-4 text-right" title="Distinct leads WhatsApp’d per day, summed over the range">Leads WhatsApp’d</th>
+                    <th className="py-2 pr-4 text-right" title="Every remark added (not deduped by lead)">Total Remarks Added</th>
+                    <th className="py-2 pr-4 text-right">Site Visits</th>
                     <th className="py-2 pr-4 text-right">Avg 1st Contact</th>
                     <th className="py-2 text-right">Closed</th>
                     {isAdmin && <th className="py-2 pl-4 text-center">In Email</th>}
@@ -281,6 +283,7 @@ export default function Reports() {
                       <td className="py-2 pr-4 text-right">{a.leadsCalled}</td>
                       <td className="py-2 pr-4 text-right">{a.leadsWhatsapped}</td>
                       <td className="py-2 pr-4 text-right">{a.followUpsDone}</td>
+                      <td className="py-2 pr-4 text-right">{a.siteVisitsDone}</td>
                       <td className="py-2 pr-4 text-right" title={a.firstContactSample ? `${a.firstContactSample} lead(s) measured` : 'no contacted leads'}>
                         {fmtMins(a.avgFirstContactMins)}
                       </td>
@@ -306,6 +309,7 @@ export default function Reports() {
                     <td className="py-2 pr-4 text-right">{totals.leadsCalled}</td>
                     <td className="py-2 pr-4 text-right">{totals.leadsWhatsapped}</td>
                     <td className="py-2 pr-4 text-right">{totals.followUpsDone}</td>
+                    <td className="py-2 pr-4 text-right">{totals.siteVisitsDone}</td>
                     <td className="py-2 pr-4 text-right">{fmtMins(totals.avgFirstContactMins)}</td>
                     <td className="py-2 text-right">{totals.closed}</td>
                     {isAdmin && <td className="py-2 pl-4" />}

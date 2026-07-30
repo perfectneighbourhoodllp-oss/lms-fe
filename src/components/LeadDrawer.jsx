@@ -15,6 +15,14 @@ const fmtDateTime = (d) => {
   );
 };
 
+// Date → YYYY-MM-DD (for <input type="date">).
+const toDateInput = (d) => {
+  if (!d) return '';
+  const dt = new Date(d);
+  const p = (n) => String(n).padStart(2, '0');
+  return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}`;
+};
+
 // WhatsApp qualification status → how it reads to the agent working the lead.
 // `live` = the bot is still actively talking to the lead.
 const WA_STATUS = {
@@ -139,6 +147,8 @@ export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemar
   const [status, setStatus] = useState(lead.status);
   const [name, setName] = useState(lead.name || ''); // admin-only rename
   const [qualification, setQualification] = useState(lead.qualification || '');
+  const [svDate, setSvDate] = useState(toDateInput(new Date())); // new-visit form
+  const [svFeedback, setSvFeedback] = useState('');
   // Format for datetime-local input: YYYY-MM-DDTHH:mm in LOCAL time
   const toDateTimeLocal = (d) => {
     if (!d) return '';
@@ -214,6 +224,8 @@ export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemar
     setStatus(lead.status);
     setName(lead.name || '');
     setQualification(lead.qualification || '');
+    setSvDate(toDateInput(new Date()));
+    setSvFeedback('');
     setFollowUpDate(toDateTimeLocal(lead.followUpDate));
     setNotes(lead.notes || '');
     setTags(lead.tags || []);
@@ -248,6 +260,23 @@ export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemar
 
   const toggleTag = (t) =>
     setTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
+
+  // Append-only site-visit history. A lead can visit multiple times; each entry
+  // records the date, feedback, and who logged it — persists regardless of status.
+  const siteVisits = lead.siteVisits || [];
+  const addVisitM = useMutation({
+    mutationFn: () => leadService.addSiteVisit(lead._id, {
+      at: svDate ? new Date(svDate).toISOString() : undefined,
+      feedback: svFeedback,
+    }),
+    onSuccess: () => {
+      setSvFeedback('');
+      qc.invalidateQueries({ queryKey: ['lead-focus'] });
+      qc.invalidateQueries({ queryKey: ['leads'] });
+      toast.success('Site visit added');
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Could not add visit'),
+  });
 
   const addCustomField = () => setCustomFields([...customFields, { key: '', value: '' }]);
   const updateCustom = (i, patch) => setCustomFields(customFields.map((c, idx) => (idx === i ? { ...c, ...patch } : c)));
@@ -293,6 +322,7 @@ export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemar
               <span className={`badge ${STATUS_STYLE[lead.status] || 'bg-gray-100 text-gray-600'}`}>
                 {lead.status}
               </span>
+              {lead.siteVisits?.length > 0 && <span className="badge bg-emerald-100 text-emerald-700" title={`${lead.siteVisits.length} site visit(s)`}>📍 Visited</span>}
               {lead.wa?.enabled && (() => {
                 const st = WA_STATUS[lead.wa.stage] || WA_STATUS.new;
                 return <span className={`badge ${st.chip}`} title={st.label}>💬 {st.short}</span>;
@@ -530,6 +560,52 @@ export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemar
                 <option key={s}>{s}</option>
               ))}
             </select>
+          </div>
+
+          {/* Site visit history — append-only; persists regardless of status */}
+          <div className="rounded-lg border border-gray-100 bg-gray-50 p-3">
+            <p className="text-sm font-medium text-gray-800 mb-2">
+              📍 Site Visits {siteVisits.length > 0 && <span className="text-gray-400 font-normal">({siteVisits.length})</span>}
+            </p>
+            {siteVisits.length > 0 ? (
+              <div className="space-y-2 mb-3">
+                {siteVisits.slice().reverse().map((v, i) => (
+                  <div key={v._id || i} className="bg-white border border-gray-100 rounded-md p-2 text-sm">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium text-gray-700">
+                        {new Date(v.at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      </span>
+                      {v.by?.name && <span className="text-[11px] text-gray-400">{v.by.name}</span>}
+                    </div>
+                    {v.feedback && <p className="text-gray-600 mt-0.5">{v.feedback}</p>}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400 mb-3">No site visits logged yet.</p>
+            )}
+            <div className="space-y-2 border-t border-gray-100 pt-2">
+              <input
+                type="date"
+                value={svDate}
+                onChange={(e) => setSvDate(e.target.value)}
+                className="input py-1.5 text-sm"
+              />
+              <textarea
+                value={svFeedback}
+                onChange={(e) => setSvFeedback(e.target.value)}
+                rows={2}
+                placeholder="Visit feedback (optional) — e.g. liked the 3 BHK, wants a corner unit"
+                className="input resize-none py-2 text-sm"
+              />
+              <button
+                onClick={() => addVisitM.mutate()}
+                disabled={addVisitM.isPending}
+                className="btn-secondary text-sm py-1.5 w-full"
+              >
+                {addVisitM.isPending ? 'Adding…' : '+ Add site visit'}
+              </button>
+            </div>
           </div>
 
           <div>

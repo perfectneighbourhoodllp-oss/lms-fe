@@ -24,6 +24,7 @@ export const leadService = {
   getOverdue: () => api.get('/leads/overdue').then((r) => r.data),
   getStats: () => api.get('/leads/stats').then((r) => r.data),
   addRemark: (id, text) => api.post(`/leads/${id}/remarks`, { text }).then((r) => r.data),
+  addSiteVisit: (id, { at, feedback }) => api.post(`/leads/${id}/site-visits`, { at, feedback }).then((r) => r.data),
   accept: (id) => api.post(`/leads/${id}/accept`).then((r) => r.data),
   logContact: (id, channel) =>
     api.post(`/leads/${id}/log-contact`, { channel }).then((r) => r.data),

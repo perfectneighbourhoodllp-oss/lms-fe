@@ -45,6 +45,7 @@ export default function Leads({ leadType = 'live' }) {
   const [followUpFrom, setFollowUpFrom] = useState('');
   const [followUpTo, setFollowUpTo] = useState('');
   const [hasFollowUpFilter, setHasFollowUpFilter] = useState(''); // '' | 'true' | 'false'
+  const [siteVisitFilter, setSiteVisitFilter] = useState(''); // '' | 'done'
   const [overdueFilter, setOverdueFilter] = useState(false); // toggled via URL param from Dashboard
   const [page, setPage] = useState(1);
   const [pageInput, setPageInput] = useState('');
@@ -72,7 +73,7 @@ export default function Leads({ leadType = 'live' }) {
   }, [searchParams]);
 
   const { data: leadsData, isLoading } = useQuery({
-    queryKey: ['leads', leadType, search, statusFilter, sourceFilter, tagFilter, projectFilter, agentFilter, createdFrom, createdTo, followUpFrom, followUpTo, hasFollowUpFilter, overdueFilter, page],
+    queryKey: ['leads', leadType, search, statusFilter, sourceFilter, tagFilter, projectFilter, agentFilter, createdFrom, createdTo, followUpFrom, followUpTo, hasFollowUpFilter, siteVisitFilter, overdueFilter, page],
     queryFn: () =>
       leadService.getAll({
         leadType,
@@ -87,6 +88,7 @@ export default function Leads({ leadType = 'live' }) {
         followUpFrom: followUpFrom || undefined,
         followUpTo: followUpTo || undefined,
         hasFollowUp: hasFollowUpFilter || undefined,
+        siteVisitDone: siteVisitFilter === 'done' ? 'true' : undefined,
         overdue: overdueFilter ? 'true' : undefined,
         page,
         limit: 30,
@@ -230,7 +232,7 @@ export default function Leads({ leadType = 'live' }) {
   // Clear selection when filters or page change (avoid stale selection across views)
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [search, statusFilter, sourceFilter, tagFilter, projectFilter, agentFilter, createdFrom, createdTo, followUpFrom, followUpTo, hasFollowUpFilter, overdueFilter, page]);
+  }, [search, statusFilter, sourceFilter, tagFilter, projectFilter, agentFilter, createdFrom, createdTo, followUpFrom, followUpTo, hasFollowUpFilter, siteVisitFilter, overdueFilter, page]);
 
   const bulkMutation = useMutation({
     mutationFn: ({ file, assignTo, project, leadType: uploadType }) =>
@@ -332,6 +334,16 @@ export default function Leads({ leadType = 'live' }) {
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
         />
         <select
+          className="input w-full sm:w-40"
+          value={projectFilter}
+          onChange={(e) => { setProjectFilter(e.target.value); setPage(1); }}
+        >
+          <option value="">All Projects</option>
+          {projects.map((p) => (
+            <option key={p._id} value={p._id}>{p.name}</option>
+          ))}
+        </select>
+        <select
           className="input w-full sm:w-36"
           value={statusFilter}
           onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
@@ -354,16 +366,6 @@ export default function Leads({ leadType = 'live' }) {
         >
           <option value="">All Tags</option>
           {TAGS.map((t) => <option key={t}>{t}</option>)}
-        </select>
-        <select
-          className="input w-full sm:w-40"
-          value={projectFilter}
-          onChange={(e) => { setProjectFilter(e.target.value); setPage(1); }}
-        >
-          <option value="">All Projects</option>
-          {projects.map((p) => (
-            <option key={p._id} value={p._id}>{p.name}</option>
-          ))}
         </select>
         {canAssign && (
           <select
@@ -396,7 +398,15 @@ export default function Leads({ leadType = 'live' }) {
           <option value="true">With follow-up</option>
           <option value="false">Without follow-up</option>
         </select>
-        {(search || statusFilter || sourceFilter || tagFilter || projectFilter || agentFilter || createdFrom || createdTo || followUpFrom || followUpTo || hasFollowUpFilter || overdueFilter) && (
+        <select
+          className="input w-full sm:w-44"
+          value={siteVisitFilter}
+          onChange={(e) => { setSiteVisitFilter(e.target.value); setPage(1); }}
+        >
+          <option value="">All (site visit)</option>
+          <option value="done">Site visit done</option>
+        </select>
+        {(search || statusFilter || sourceFilter || tagFilter || projectFilter || agentFilter || createdFrom || createdTo || followUpFrom || followUpTo || hasFollowUpFilter || siteVisitFilter || overdueFilter) && (
           <button
             onClick={() => {
               setSearch(''); setStatusFilter(''); setSourceFilter('');
@@ -405,6 +415,7 @@ export default function Leads({ leadType = 'live' }) {
               setCreatedFrom(''); setCreatedTo('');
               setFollowUpFrom(''); setFollowUpTo('');
               setHasFollowUpFilter('');
+              setSiteVisitFilter('');
               setOverdueFilter(false);
               setPage(1);
             }}
