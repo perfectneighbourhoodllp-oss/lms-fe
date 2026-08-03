@@ -46,9 +46,21 @@ const fmtDateTime = (d) => {
 
 const waLink = (phone) => `https://wa.me/${phone.replace(/\D/g, '')}`;
 
-// Small badge showing the lead's acceptance state (pending / escalated).
+// Small badge showing the lead's acceptance state (pending / unaccepted-after-a-round / escalated).
 export function AcceptanceBadge({ lead, className = '' }) {
   if (lead.acceptanceStatus === 'pending') {
+    const cycles = lead.cyclesCompleted || 0;
+    // Revolved through the whole team at least once with nobody accepting → flag it red.
+    if (cycles >= 1) {
+      return (
+        <span
+          className={`badge bg-red-100 text-red-700 ${className}`}
+          title={`No agent has accepted after ${cycles} full round${cycles > 1 ? 's' : ''} — still revolving`}
+        >
+          ⚠ Unaccepted{cycles > 1 ? ` (${cycles} rounds)` : ''}
+        </span>
+      );
+    }
     return (
       <span className={`badge bg-yellow-100 text-yellow-700 ${className}`}>
         Pending accept{lead.reassignmentCount > 0 ? ` (#${lead.reassignmentCount})` : ''}
