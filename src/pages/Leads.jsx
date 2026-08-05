@@ -298,11 +298,16 @@ export default function Leads({ leadType = 'live' }) {
           <h1 className="text-xl font-bold text-gray-900">
             {isDatabase ? 'Database' : 'Leads'}
           </h1>
-          <p className="text-xs text-gray-500 mt-0.5">
-            {isDatabase
-              ? `${totalLeads} database contact${totalLeads !== 1 ? 's' : ''} (bulk-uploaded cold data)`
-              : `${totalLeads} lead${totalLeads !== 1 ? 's' : ''} found`}
-          </p>
+          <div className="mt-1 flex items-center gap-2">
+            <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-0.5 text-sm font-bold text-blue-700 tabular-nums">
+              {totalLeads}
+            </span>
+            <span className="text-xs font-medium text-gray-500">
+              {isDatabase
+                ? `database contact${totalLeads !== 1 ? 's' : ''} (bulk-uploaded cold data)`
+                : `lead${totalLeads !== 1 ? 's' : ''} found`}
+            </span>
+          </div>
         </div>
         <div className="flex w-full sm:w-auto gap-2">
           {isAdmin && (

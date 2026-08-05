@@ -25,6 +25,8 @@ export const leadService = {
   getStats: () => api.get('/leads/stats').then((r) => r.data),
   addRemark: (id, text) => api.post(`/leads/${id}/remarks`, { text }).then((r) => r.data),
   addSiteVisit: (id, { at, feedback }) => api.post(`/leads/${id}/site-visits`, { at, feedback }).then((r) => r.data),
+  updateSiteVisit: (id, visitId, { at, feedback }) => api.put(`/leads/${id}/site-visits/${visitId}`, { at, feedback }).then((r) => r.data),
+  deleteSiteVisit: (id, visitId) => api.delete(`/leads/${id}/site-visits/${visitId}`).then((r) => r.data),
   accept: (id) => api.post(`/leads/${id}/accept`).then((r) => r.data),
   logContact: (id, channel) =>
     api.post(`/leads/${id}/log-contact`, { channel }).then((r) => r.data),

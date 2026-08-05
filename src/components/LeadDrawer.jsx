@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { STATUSES, STATUS_STYLE, TAGS } from './LeadTable';
+import ConfirmModal from './ConfirmModal';
 import { leadService, whatsappService, projectService } from '../services/leadService';
 
 const waLink = (phone) => `https://wa.me/${phone.replace(/\D/g, '')}`;
@@ -276,6 +277,40 @@ export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemar
       toast.success('Site visit added');
     },
     onError: (err) => toast.error(err.response?.data?.message || 'Could not add visit'),
+  });
+
+  // Edit / cancel an existing site visit.
+  const [editingVisitId, setEditingVisitId] = useState(null);
+  const [editVisitDate, setEditVisitDate] = useState('');
+  const [editVisitFeedback, setEditVisitFeedback] = useState('');
+  const [confirmDeleteVisitId, setConfirmDeleteVisitId] = useState(null);
+  const startEditVisit = (v) => {
+    setEditingVisitId(v._id);
+    const d = v.at ? new Date(v.at) : new Date();
+    setEditVisitDate(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+    setEditVisitFeedback(v.feedback || '');
+  };
+  const editVisitM = useMutation({
+    mutationFn: (visitId) => leadService.updateSiteVisit(lead._id, visitId, {
+      at: editVisitDate ? new Date(editVisitDate).toISOString() : undefined,
+      feedback: editVisitFeedback,
+    }),
+    onSuccess: () => {
+      setEditingVisitId(null);
+      qc.invalidateQueries({ queryKey: ['lead-focus'] });
+      qc.invalidateQueries({ queryKey: ['leads'] });
+      toast.success('Site visit updated');
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Could not update visit'),
+  });
+  const deleteVisitM = useMutation({
+    mutationFn: (visitId) => leadService.deleteSiteVisit(lead._id, visitId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['lead-focus'] });
+      qc.invalidateQueries({ queryKey: ['leads'] });
+      toast.success('Site visit removed');
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Could not remove visit'),
   });
 
   const addCustomField = () => setCustomFields([...customFields, { key: '', value: '' }]);
@@ -571,13 +606,49 @@ export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemar
               <div className="space-y-2 mb-3">
                 {siteVisits.slice().reverse().map((v, i) => (
                   <div key={v._id || i} className="bg-white border border-gray-100 rounded-md p-2 text-sm">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="font-medium text-gray-700">
-                        {new Date(v.at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                      </span>
-                      {v.by?.name && <span className="text-[11px] text-gray-400">{v.by.name}</span>}
-                    </div>
-                    {v.feedback && <p className="text-gray-600 mt-0.5">{v.feedback}</p>}
+                    {editingVisitId === v._id ? (
+                      <div className="space-y-1.5">
+                        <input
+                          type="date"
+                          value={editVisitDate}
+                          onChange={(e) => setEditVisitDate(e.target.value)}
+                          className="input py-1 text-sm"
+                        />
+                        <textarea
+                          value={editVisitFeedback}
+                          onChange={(e) => setEditVisitFeedback(e.target.value)}
+                          rows={2}
+                          placeholder="Visit feedback (optional)"
+                          className="input resize-none py-1.5 text-sm"
+                        />
+                        <div className="flex gap-2">
+                          <button onClick={() => editVisitM.mutate(v._id)} disabled={editVisitM.isPending} className="btn-primary text-xs py-1 px-3">
+                            {editVisitM.isPending ? 'Saving…' : 'Save'}
+                          </button>
+                          <button onClick={() => setEditingVisitId(null)} className="btn-secondary text-xs py-1 px-3">Cancel</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-medium text-gray-700">
+                            {new Date(v.at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          </span>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            {v.by?.name && <span className="text-[11px] text-gray-400">{v.by.name}</span>}
+                            <button onClick={() => startEditVisit(v)} className="text-[11px] text-blue-600 hover:underline">Edit</button>
+                            <button
+                              onClick={() => setConfirmDeleteVisitId(v._id)}
+                              disabled={deleteVisitM.isPending}
+                              className="text-[11px] text-red-500 hover:underline"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </div>
+                        {v.feedback && <p className="text-gray-600 mt-0.5">{v.feedback}</p>}
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
@@ -764,6 +835,16 @@ export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemar
               Delete this lead
             </button>
           </div>
+        )}
+
+        {confirmDeleteVisitId && (
+          <ConfirmModal
+            title="Remove site visit"
+            message="Remove this site visit from the lead's history? This can't be undone."
+            confirmLabel="Remove"
+            onConfirm={() => { deleteVisitM.mutate(confirmDeleteVisitId); setConfirmDeleteVisitId(null); }}
+            onCancel={() => setConfirmDeleteVisitId(null)}
+          />
         )}
       </div>
     </div>
