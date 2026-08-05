@@ -177,7 +177,7 @@ export default function Reports() {
   const agents = isSales ? [] : (data?.agents || []);
   const totals =
     (isSales ? data?.agent : data?.totals) ||
-    { leadsAssigned: 0, leadsCalled: 0, leadsWhatsapped: 0, followUpsDone: 0, siteVisitsDone: 0, closed: 0 };
+    { leadsAssigned: 0, leadsCalled: 0, callsMade: 0, leadsWhatsapped: 0, followUpsDone: 0, siteVisitsDone: 0, closed: 0 };
 
   return (
     <div className="p-4 sm:p-6 max-w-6xl mx-auto space-y-5">
@@ -229,6 +229,7 @@ export default function Reports() {
         {[
           { label: 'Leads Assigned', value: totals.leadsAssigned, icon: '👥' },
           { label: 'Leads Called', value: totals.leadsCalled, icon: '📞', hint: 'Distinct leads called per day, summed over the range' },
+          { label: 'Calls Made', value: totals.callsMade, icon: '☎️', hint: 'Every call logged — not deduped by lead' },
           { label: 'Leads WhatsApp’d', value: totals.leadsWhatsapped, icon: '🟢', hint: 'Distinct leads WhatsApp’d per day, summed over the range' },
           { label: 'Total Remarks', value: totals.followUpsDone, icon: '📝', hint: 'Every remark added (not deduped by lead)' },
           { label: 'Site Visits', value: totals.siteVisitsDone, icon: '📍', hint: 'Site visits marked done in this range' },
@@ -264,6 +265,7 @@ export default function Reports() {
                     <th className="py-2 pr-4">Agent</th>
                     <th className="py-2 pr-4 text-right">Leads Assigned</th>
                     <th className="py-2 pr-4 text-right" title="Distinct leads called per day, summed over the range">Leads Called</th>
+                    <th className="py-2 pr-4 text-right" title="Every call logged — not deduped by lead">Calls Made</th>
                     <th className="py-2 pr-4 text-right" title="Distinct leads WhatsApp’d per day, summed over the range">Leads WhatsApp’d</th>
                     <th className="py-2 pr-4 text-right" title="Every remark added (not deduped by lead)">Total Remarks Added</th>
                     <th className="py-2 pr-4 text-right">Site Visits</th>
@@ -281,6 +283,7 @@ export default function Reports() {
                       </td>
                       <td className="py-2 pr-4 text-right">{a.leadsAssigned}</td>
                       <td className="py-2 pr-4 text-right">{a.leadsCalled}</td>
+                      <td className="py-2 pr-4 text-right">{a.callsMade}</td>
                       <td className="py-2 pr-4 text-right">{a.leadsWhatsapped}</td>
                       <td className="py-2 pr-4 text-right">{a.followUpsDone}</td>
                       <td className="py-2 pr-4 text-right">{a.siteVisitsDone}</td>
@@ -307,6 +310,7 @@ export default function Reports() {
                     <td className="py-2 pr-4">Total</td>
                     <td className="py-2 pr-4 text-right">{totals.leadsAssigned}</td>
                     <td className="py-2 pr-4 text-right">{totals.leadsCalled}</td>
+                    <td className="py-2 pr-4 text-right">{totals.callsMade}</td>
                     <td className="py-2 pr-4 text-right">{totals.leadsWhatsapped}</td>
                     <td className="py-2 pr-4 text-right">{totals.followUpsDone}</td>
                     <td className="py-2 pr-4 text-right">{totals.siteVisitsDone}</td>
