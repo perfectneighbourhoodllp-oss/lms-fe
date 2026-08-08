@@ -359,8 +359,8 @@ export default function LeadTable({
                   {!compact && (
                     <td className="td">
                       {latestRemark ? (
-                        <div className="max-w-[240px]">
-                          <div className="text-xs text-gray-600 truncate" title={latestRemark.text}>
+                        <div className="min-w-[320px] max-w-[520px]">
+                          <div className="text-xs text-gray-600 whitespace-normal break-words" title={latestRemark.text}>
                             {latestRemark.text}
                           </div>
                           <div className="text-[10px] text-gray-400">
