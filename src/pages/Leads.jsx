@@ -34,6 +34,7 @@ export default function Leads({ leadType = 'live' }) {
   // Bulk-delete selection state (admin only)
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [confirmBulkAssign, setConfirmBulkAssign] = useState(null); // { assignTo, agentName }
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [sourceFilter, setSourceFilter] = useState('');
@@ -214,6 +215,16 @@ export default function Leads({ leadType = 'live' }) {
       toast.success(`${modifiedCount} lead${modifiedCount !== 1 ? 's' : ''} moved to ${leadType === 'database' ? 'Database' : 'Live'}`);
     },
     onError: (err) => toast.error(err.response?.data?.message || 'Move failed'),
+  });
+
+  const bulkAssignMutation = useMutation({
+    mutationFn: ({ ids, assignTo }) => leadService.bulkAssign(ids, assignTo),
+    onSuccess: ({ assignedCount }) => {
+      qc.invalidateQueries({ queryKey: ['leads'] });
+      setSelectedIds(new Set());
+      toast.success(`${assignedCount} lead${assignedCount !== 1 ? 's' : ''} assigned`);
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Bulk assign failed'),
   });
 
   // Selection handlers
@@ -519,9 +530,9 @@ export default function Leads({ leadType = 'live' }) {
           <LeadTable
             leads={leads}
             onSelect={(lead) => setSelectedLeadId(lead._id)}
-            selectedIds={isAdmin ? selectedIds : undefined}
-            onToggleSelect={isAdmin ? toggleSelect : undefined}
-            onToggleSelectAll={isAdmin ? toggleSelectAll : undefined}
+            selectedIds={canAssign ? selectedIds : undefined}
+            onToggleSelect={canAssign ? toggleSelect : undefined}
+            onToggleSelectAll={canAssign ? toggleSelectAll : undefined}
             currentUserId={user?._id || user?.id}
             onAccept={(id) => acceptMutation.mutate(id)}
             accepting={acceptMutation.isPending}
@@ -586,8 +597,8 @@ export default function Leads({ leadType = 'live' }) {
         </div>
       )}
 
-      {/* Bulk action bar (admin, when leads are selected) */}
-      {isAdmin && selectedIds.size > 0 && (
+      {/* Bulk action bar (admin/manager, when leads are selected) */}
+      {canAssign && selectedIds.size > 0 && (
         <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 bg-gray-900 text-white rounded-full shadow-xl px-4 py-2.5 flex items-center gap-3">
           <span className="text-sm">
             {selectedIds.size} selected
@@ -598,25 +609,50 @@ export default function Leads({ leadType = 'live' }) {
           >
             Clear
           </button>
-          <button
-            onClick={() => bulkTypeMutation.mutate({
-              ids: Array.from(selectedIds),
-              leadType: isDatabase ? 'live' : 'database',
-            })}
-            disabled={bulkTypeMutation.isPending}
-            className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium py-1.5 px-3 rounded-full disabled:opacity-50"
+
+          {/* Bulk assign — admin + manager */}
+          <select
+            value=""
+            onChange={(e) => {
+              const id = e.target.value;
+              if (id) {
+                const agent = users.find((u) => u._id === id);
+                setConfirmBulkAssign({ assignTo: id, agentName: agent?.name || 'this agent' });
+              }
+            }}
+            disabled={bulkAssignMutation.isPending}
+            className="bg-gray-800 text-white text-xs font-medium py-1.5 px-3 rounded-full border border-gray-700 focus:outline-none disabled:opacity-50 cursor-pointer"
           >
-            {bulkTypeMutation.isPending
-              ? 'Moving…'
-              : isDatabase ? 'Move to Live' : 'Move to Database'}
-          </button>
-          <button
-            onClick={() => setConfirmBulkDelete(true)}
-            disabled={bulkDeleteMutation.isPending}
-            className="bg-red-600 hover:bg-red-700 text-white text-xs font-medium py-1.5 px-3 rounded-full disabled:opacity-50"
-          >
-            {bulkDeleteMutation.isPending ? 'Deleting…' : 'Delete'}
-          </button>
+            <option value="">{bulkAssignMutation.isPending ? 'Assigning…' : 'Assign to…'}</option>
+            {users.map((u) => (
+              <option key={u._id} value={u._id} className="text-gray-900">{u.name}</option>
+            ))}
+          </select>
+
+          {/* Move + Delete — admin only */}
+          {isAdmin && (
+            <>
+              <button
+                onClick={() => bulkTypeMutation.mutate({
+                  ids: Array.from(selectedIds),
+                  leadType: isDatabase ? 'live' : 'database',
+                })}
+                disabled={bulkTypeMutation.isPending}
+                className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium py-1.5 px-3 rounded-full disabled:opacity-50"
+              >
+                {bulkTypeMutation.isPending
+                  ? 'Moving…'
+                  : isDatabase ? 'Move to Live' : 'Move to Database'}
+              </button>
+              <button
+                onClick={() => setConfirmBulkDelete(true)}
+                disabled={bulkDeleteMutation.isPending}
+                className="bg-red-600 hover:bg-red-700 text-white text-xs font-medium py-1.5 px-3 rounded-full disabled:opacity-50"
+              >
+                {bulkDeleteMutation.isPending ? 'Deleting…' : 'Delete'}
+              </button>
+            </>
+          )}
         </div>
       )}
 
@@ -666,6 +702,20 @@ export default function Leads({ leadType = 'live' }) {
             setConfirmBulkDelete(false);
           }}
           onCancel={() => setConfirmBulkDelete(false)}
+        />
+      )}
+
+      {confirmBulkAssign && (
+        <ConfirmModal
+          title={`Assign ${selectedIds.size} Lead${selectedIds.size !== 1 ? 's' : ''}?`}
+          message={`Assign ${selectedIds.size} selected lead${selectedIds.size !== 1 ? 's' : ''} to ${confirmBulkAssign.agentName}? They'll be notified.`}
+          confirmLabel={`Assign to ${confirmBulkAssign.agentName}`}
+          danger={false}
+          onConfirm={() => {
+            bulkAssignMutation.mutate({ ids: Array.from(selectedIds), assignTo: confirmBulkAssign.assignTo });
+            setConfirmBulkAssign(null);
+          }}
+          onCancel={() => setConfirmBulkAssign(null)}
         />
       )}
 

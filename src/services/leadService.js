@@ -35,6 +35,7 @@ export const leadService = {
     api.get('/leads/export', { params, responseType: 'blob' }).then((r) => r.data),
   bulkDelete: (ids) => api.post('/leads/bulk-delete', { ids }).then((r) => r.data),
   bulkSetLeadType: (ids, leadType) => api.post('/leads/bulk-type', { ids, leadType }).then((r) => r.data),
+  bulkAssign: (ids, assignTo) => api.post('/leads/bulk-assign', { ids, assignTo }).then((r) => r.data),
   reject: (id) => api.post(`/leads/${id}/reject`).then((r) => r.data),
 };
 
