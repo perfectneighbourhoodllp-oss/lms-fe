@@ -39,6 +39,65 @@ export const leadService = {
   reject: (id) => api.post(`/leads/${id}/reject`).then((r) => r.data),
 };
 
+// Streaming chat over SSE. Calls onDelta(chunk) as text arrives; resolves with
+// the full answer. Throws on error (caller can fall back to non-streaming ask).
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
+async function askStream(question, onDelta) {
+  const token = localStorage.getItem('token');
+  const resp = await fetch(`${API_BASE}/assistant/ask/stream`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ question }),
+  });
+  if (!resp.ok || !resp.body) throw new Error('stream-unavailable');
+
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let full = '';
+  let errored = null;
+
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    let idx;
+    while ((idx = buffer.indexOf('\n\n')) !== -1) {
+      const frame = buffer.slice(0, idx);
+      buffer = buffer.slice(idx + 2);
+      const line = frame.split('\n').find((l) => l.startsWith('data:'));
+      if (!line) continue;
+      const payload = line.slice(5).trim();
+      if (!payload) continue;
+      let obj;
+      try {
+        obj = JSON.parse(payload);
+      } catch {
+        continue;
+      }
+      if (obj.delta) {
+        full += obj.delta;
+        onDelta?.(obj.delta);
+      } else if (obj.error) {
+        errored = obj.error;
+      }
+    }
+  }
+  if (errored) throw new Error(errored);
+  return full;
+}
+
+export const assistantService = {
+  askStream,
+  ask: (question) => api.post('/assistant/ask', { question }).then((r) => r.data),
+  usage: (days = 30) => api.get('/assistant/usage', { params: { days } }).then((r) => r.data),
+  nextAction: (id) => api.post(`/assistant/leads/${id}/next-action`).then((r) => r.data),
+  history: () => api.get('/assistant/history').then((r) => r.data),
+};
+
 export const notificationService = {
   list: (params) => api.get('/notifications', { params }).then((r) => r.data),
   unreadCount: () => api.get('/notifications/unread-count').then((r) => r.data),

@@ -22,6 +22,7 @@ import CapiEvents from './pages/CapiEvents';
 import WhatsAppInbox from './pages/WhatsAppInbox';
 import AgentPerformance from './pages/AgentPerformance';
 import Reports from './pages/Reports';
+import Assistant from './pages/Assistant';
 import './index.css';
 
 const queryClient = new QueryClient({
@@ -86,6 +87,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
               <Route path="whatsapp-inbox" element={<WhatsAppInbox />} />
               <Route path="agents" element={<AgentPerformance />} />
               <Route path="reports" element={<Reports />} />
+              <Route path="assistant" element={<Assistant />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
