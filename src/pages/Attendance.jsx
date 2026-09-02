@@ -480,11 +480,38 @@ function MyHistory() {
 const PAGE_SIZE = 30;
 
 function TeamView() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
   const [userId, setUserId] = useState(''); // '' = all agents
   const [month, setMonth] = useState(''); // 'YYYY-MM'
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [page, setPage] = useState(1);
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const blob = await attendanceService.exportCsv({
+        ...(userId ? { userId } : {}),
+        ...(from ? { from } : {}),
+        ...(to ? { to } : {}),
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `attendance-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success('Export complete');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Export failed');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   // Picking a month sets the date range to that whole month.
   const handleMonth = (value) => {
@@ -580,6 +607,15 @@ function TeamView() {
             {hasFilter && (
               <button className="btn-ghost text-xs sm:mb-1 col-span-2 sm:col-auto" onClick={clearFilters}>
                 Clear filters
+              </button>
+            )}
+            {isAdmin && (
+              <button
+                className="btn-secondary text-xs sm:mb-1 col-span-2 sm:col-auto disabled:opacity-50"
+                onClick={handleExport}
+                disabled={exporting}
+              >
+                {exporting ? 'Exporting…' : '⬇ Export CSV'}
               </button>
             )}
           </div>

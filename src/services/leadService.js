@@ -200,6 +200,8 @@ export const attendanceService = {
   getToday: () => api.get('/attendance/today').then((r) => r.data),
   getMine: (params) => api.get('/attendance/me', { params }).then((r) => r.data),
   listAll: (params) => api.get('/attendance', { params }).then((r) => r.data),
+  exportCsv: (params) =>
+    api.get('/attendance/export', { params, responseType: 'blob' }).then((r) => r.data),
   checkIn: (data) => api.post('/attendance/check-in', data).then((r) => r.data),
   checkOut: (data) => api.post('/attendance/check-out', data).then((r) => r.data),
   uploadSelfie: (file) => {
