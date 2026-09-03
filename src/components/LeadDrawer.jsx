@@ -358,6 +358,14 @@ export default function LeadDrawer({ lead, onClose, onSave, onDelete, onAddRemar
                 {lead.status}
               </span>
               {lead.siteVisits?.length > 0 && <span className="badge bg-emerald-100 text-emerald-700" title={`${lead.siteVisits.length} site visit(s)`}>📍 Visited</span>}
+              {lead.reInquiryCount > 0 && (
+                <span
+                  className="badge bg-amber-100 text-amber-700"
+                  title={`Re-inquired ${lead.reInquiryCount} time(s)${lead.lastReInquiryAt ? ` · last ${fmtDateTime(lead.lastReInquiryAt)}` : ''}`}
+                >
+                  🔁 Re-inquiry{lead.reInquiryCount > 1 ? ` ×${lead.reInquiryCount}` : ''}
+                </span>
+              )}
               {lead.wa?.enabled && (() => {
                 const st = WA_STATUS[lead.wa.stage] || WA_STATUS.new;
                 return <span className={`badge ${st.chip}`} title={st.label}>💬 {st.short}</span>;

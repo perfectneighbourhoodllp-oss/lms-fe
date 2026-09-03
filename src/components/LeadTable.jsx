@@ -166,6 +166,11 @@ function LeadCard({ lead, onSelect, currentUserId, onAccept, onReject, accepting
             {lead.status}
           </span>
           {lead.siteVisits?.length > 0 && <span className="badge bg-emerald-100 text-emerald-700" title={`${lead.siteVisits.length} site visit(s)`}>📍 Visited</span>}
+          {lead.reInquiryCount > 0 && (
+            <span className="badge bg-amber-100 text-amber-700" title={`Re-inquired ${lead.reInquiryCount} time(s)`}>
+              🔁 Re-inquiry{lead.reInquiryCount > 1 ? ` ×${lead.reInquiryCount}` : ''}
+            </span>
+          )}
           {overdue && <span className="badge bg-red-100 text-red-700">Late</span>}
           {lead.leadType === 'database' && <span className="badge bg-gray-100 text-gray-500" title="Bulk-uploaded database lead">DB</span>}
           <AcceptControl lead={lead} currentUserId={currentUserId} onAccept={onAccept} onReject={onReject} accepting={accepting} rejecting={rejecting} />
