@@ -9,6 +9,7 @@ import LeadDrawer from '../components/LeadDrawer';
 import AddLeadModal from '../components/AddLeadModal';
 import BulkUploadModal from '../components/BulkUploadModal';
 import ConfirmModal from '../components/ConfirmModal';
+import MultiSelect from '../components/MultiSelect';
 
 // Status filter ordering only — surface the most-used statuses first. Does NOT
 // affect the edit-status picker or the Add-Lead form (those keep STATUSES order).
@@ -36,11 +37,11 @@ export default function Leads({ leadType = 'live' }) {
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
   const [confirmBulkAssign, setConfirmBulkAssign] = useState(null); // { assignTo, agentName }
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState([]); // multi-select
   const [sourceFilter, setSourceFilter] = useState('');
-  const [tagFilter, setTagFilter] = useState('');
-  const [projectFilter, setProjectFilter] = useState('');
-  const [agentFilter, setAgentFilter] = useState('');
+  const [tagFilter, setTagFilter] = useState([]); // multi-select
+  const [projectFilter, setProjectFilter] = useState([]); // multi-select
+  const [agentFilter, setAgentFilter] = useState([]); // multi-select
   const [createdFrom, setCreatedFrom] = useState('');
   const [createdTo, setCreatedTo] = useState('');
   const [followUpFrom, setFollowUpFrom] = useState('');
@@ -61,11 +62,11 @@ export default function Leads({ leadType = 'live' }) {
   const [searchParams] = useSearchParams();
   useEffect(() => {
     const assignedTo = searchParams.get('assignedTo');
-    if (assignedTo) setAgentFilter(assignedTo);
+    if (assignedTo) setAgentFilter(assignedTo.split(',').filter(Boolean));
     const focus = searchParams.get('focus');
     if (focus) setSelectedLeadId(focus);
     const status = searchParams.get('status');
-    if (status) setStatusFilter(status);
+    if (status) setStatusFilter(status.split(',').filter(Boolean));
     const fuFrom = searchParams.get('followUpFrom');
     if (fuFrom) setFollowUpFrom(fuFrom);
     const fuTo = searchParams.get('followUpTo');
@@ -74,16 +75,16 @@ export default function Leads({ leadType = 'live' }) {
   }, [searchParams]);
 
   const { data: leadsData, isLoading } = useQuery({
-    queryKey: ['leads', leadType, search, statusFilter, sourceFilter, tagFilter, projectFilter, agentFilter, createdFrom, createdTo, followUpFrom, followUpTo, hasFollowUpFilter, siteVisitFilter, overdueFilter, page],
+    queryKey: ['leads', leadType, search, statusFilter.join(','), sourceFilter, tagFilter.join(','), projectFilter.join(','), agentFilter.join(','), createdFrom, createdTo, followUpFrom, followUpTo, hasFollowUpFilter, siteVisitFilter, overdueFilter, page],
     queryFn: () =>
       leadService.getAll({
         leadType,
         search: search || undefined,
-        status: statusFilter || undefined,
+        status: statusFilter.length ? statusFilter.join(',') : undefined,
         source: sourceFilter || undefined,
-        tag: tagFilter || undefined,
-        project: projectFilter || undefined,
-        assignedTo: agentFilter || undefined,
+        tag: tagFilter.length ? tagFilter.join(',') : undefined,
+        project: projectFilter.length ? projectFilter.join(',') : undefined,
+        assignedTo: agentFilter.length ? agentFilter.join(',') : undefined,
         createdFrom: createdFrom || undefined,
         createdTo: createdTo || undefined,
         followUpFrom: followUpFrom || undefined,
@@ -243,7 +244,7 @@ export default function Leads({ leadType = 'live' }) {
   // Clear selection when filters or page change (avoid stale selection across views)
   useEffect(() => {
     setSelectedIds(new Set());
-  }, [search, statusFilter, sourceFilter, tagFilter, projectFilter, agentFilter, createdFrom, createdTo, followUpFrom, followUpTo, hasFollowUpFilter, siteVisitFilter, overdueFilter, page]);
+  }, [search, statusFilter.join(','), sourceFilter, tagFilter.join(','), projectFilter.join(','), agentFilter.join(','), createdFrom, createdTo, followUpFrom, followUpTo, hasFollowUpFilter, siteVisitFilter, overdueFilter, page]);
 
   const bulkMutation = useMutation({
     mutationFn: ({ file, assignTo, project, leadType: uploadType }) =>
@@ -273,11 +274,11 @@ export default function Leads({ leadType = 'live' }) {
       const blob = await leadService.exportCsv({
         leadType,
         search: search || undefined,
-        status: statusFilter || undefined,
+        status: statusFilter.length ? statusFilter.join(',') : undefined,
         source: sourceFilter || undefined,
-        tag: tagFilter || undefined,
-        project: projectFilter || undefined,
-        assignedTo: agentFilter || undefined,
+        tag: tagFilter.length ? tagFilter.join(',') : undefined,
+        project: projectFilter.length ? projectFilter.join(',') : undefined,
+        assignedTo: agentFilter.length ? agentFilter.join(',') : undefined,
         createdFrom: createdFrom || undefined,
         createdTo: createdTo || undefined,
         followUpFrom: followUpFrom || undefined,
@@ -349,24 +350,20 @@ export default function Leads({ leadType = 'live' }) {
           value={search}
           onChange={(e) => { setSearch(e.target.value); setPage(1); }}
         />
-        <select
-          className="input w-full sm:w-40"
+        <MultiSelect
+          className="w-full sm:w-40"
+          allLabel="All Projects"
           value={projectFilter}
-          onChange={(e) => { setProjectFilter(e.target.value); setPage(1); }}
-        >
-          <option value="">All Projects</option>
-          {projects.map((p) => (
-            <option key={p._id} value={p._id}>{p.name}</option>
-          ))}
-        </select>
-        <select
-          className="input w-full sm:w-36"
+          onChange={(v) => { setProjectFilter(v); setPage(1); }}
+          options={projects.map((p) => ({ value: p._id, label: p.name }))}
+        />
+        <MultiSelect
+          className="w-full sm:w-36"
+          allLabel="All Statuses"
           value={statusFilter}
-          onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-        >
-          <option value="">All Statuses</option>
-          {FILTER_STATUSES.map((s) => <option key={s}>{s}</option>)}
-        </select>
+          onChange={(v) => { setStatusFilter(v); setPage(1); }}
+          options={FILTER_STATUSES}
+        />
         <select
           className="input w-full sm:w-36"
           value={sourceFilter}
@@ -375,26 +372,21 @@ export default function Leads({ leadType = 'live' }) {
           <option value="">All Sources</option>
           {SOURCES.map((s) => <option key={s}>{s}</option>)}
         </select>
-        <select
-          className="input w-full sm:w-40"
+        <MultiSelect
+          className="w-full sm:w-40"
+          allLabel="All Tags"
           value={tagFilter}
-          onChange={(e) => { setTagFilter(e.target.value); setPage(1); }}
-        >
-          <option value="">All Tags</option>
-          {TAGS.map((t) => <option key={t}>{t}</option>)}
-        </select>
+          onChange={(v) => { setTagFilter(v); setPage(1); }}
+          options={TAGS}
+        />
         {canAssign && (
-          <select
-            className="input w-full sm:w-40"
+          <MultiSelect
+            className="w-full sm:w-40"
+            allLabel="All Agents"
             value={agentFilter}
-            onChange={(e) => { setAgentFilter(e.target.value); setPage(1); }}
-          >
-            <option value="">All Agents</option>
-            <option value="unassigned">— Unassigned only —</option>
-            {users.map((u) => (
-              <option key={u._id} value={u._id}>{u.name}</option>
-            ))}
-          </select>
+            onChange={(v) => { setAgentFilter(v); setPage(1); }}
+            options={[{ value: 'unassigned', label: '— Unassigned —' }, ...users.map((u) => ({ value: u._id, label: u.name }))]}
+          />
         )}
         {overdueFilter && (
           <button
@@ -422,12 +414,12 @@ export default function Leads({ leadType = 'live' }) {
           <option value="">All (site visit)</option>
           <option value="done">Site visit done</option>
         </select>
-        {(search || statusFilter || sourceFilter || tagFilter || projectFilter || agentFilter || createdFrom || createdTo || followUpFrom || followUpTo || hasFollowUpFilter || siteVisitFilter || overdueFilter) && (
+        {(search || statusFilter.length || sourceFilter || tagFilter.length || projectFilter.length || agentFilter.length || createdFrom || createdTo || followUpFrom || followUpTo || hasFollowUpFilter || siteVisitFilter || overdueFilter) && (
           <button
             onClick={() => {
-              setSearch(''); setStatusFilter(''); setSourceFilter('');
-              setTagFilter('');
-              setProjectFilter(''); setAgentFilter('');
+              setSearch(''); setStatusFilter([]); setSourceFilter('');
+              setTagFilter([]);
+              setProjectFilter([]); setAgentFilter([]);
               setCreatedFrom(''); setCreatedTo('');
               setFollowUpFrom(''); setFollowUpTo('');
               setHasFollowUpFilter('');
