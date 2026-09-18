@@ -9,6 +9,7 @@ const TYPE_ICON = {
   'lead.followUp': '⏰',
   'lead.unassigned': '❓',
   'lead.waHandoff': '🟢',
+  'lead.reInquiry': '🔁',
 };
 
 const fmtAgo = (d) => {
