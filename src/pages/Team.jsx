@@ -37,7 +37,7 @@ function AgentFormModal({ agent, onClose, onSubmit, isLoading, currentUserRole, 
     formState: { errors },
   } = useForm({
     defaultValues: agent
-      ? { name: agent.name, email: agent.email, phone: agent.phone || '', role: agent.role, reportsTo: agent.reportsTo?._id || '' }
+      ? { name: agent.name, email: agent.email, phone: agent.phone || '', role: agent.role, reportsTo: agent.reportsTo?._id || '', viewAllLeads: !!agent.viewAllLeads }
       : { role: 'sales', reportsTo: '' },
   });
   const selectedRole = watch('role');
@@ -106,6 +106,19 @@ function AgentFormModal({ agent, onClose, onSubmit, isLoading, currentUserRole, 
               </select>
               <p className="text-xs text-gray-400 mt-0.5">This manager will see this person's leads.</p>
             </div>
+          )}
+
+          {/* Company-wide visibility override (the "head"): sees all leads + projects, no admin powers. */}
+          {currentUserRole === 'admin' && isEdit && (
+            <label className="flex items-start gap-2 p-2.5 rounded-lg border border-gray-200 bg-gray-50 cursor-pointer">
+              <input type="checkbox" className="mt-0.5 rounded border-gray-300" {...register('viewAllLeads')} />
+              <span>
+                <span className="text-sm font-medium text-gray-800">See all leads &amp; projects</span>
+                <span className="block text-xs text-gray-400">
+                  Company-wide visibility (e.g. the head) — no admin powers. Takes effect on their next login.
+                </span>
+              </span>
+            </label>
           )}
 
           {!isEdit && (
